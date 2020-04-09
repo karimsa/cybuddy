@@ -12,7 +12,7 @@ export function useLocalState(name, defaultValue) {
 	})
 	return [
 		value,
-		nextValue => {
+		(nextValue) => {
 			if (nextValue == null) {
 				localStorage.removeItem(name)
 			} else {
@@ -41,10 +41,10 @@ export function useReducer(reducer, initialState) {
 
 	return [
 		state,
-		action => {
+		(action) => {
 			const nextState = reducer(ref.current, action, reducer)
 			if (nextState != null && 'then' in nextState) {
-				nextState.then(value => {
+				nextState.then((value) => {
 					setState((ref.current = value))
 				})
 			} else {
@@ -132,12 +132,12 @@ export function useAsyncAction(fn, deps) {
 			let canceled = false
 			const promise = Promise.resolve(fn(...asyncArgs))
 			promise
-				.then(result => {
+				.then((result) => {
 					if (!canceled) {
 						dispatch({ type: 'SET_RESULT', result })
 					}
 				})
-				.catch(error => {
+				.catch((error) => {
 					if (!canceled) {
 						dispatch({ type: 'ERROR', error })
 					}
@@ -165,7 +165,7 @@ export function useAsyncAction(fn, deps) {
 		{
 			fetch: (...args) => dispatch({ type: 'FETCH', args }),
 			forceFetch: (...args) => dispatch({ type: 'FORCE_FETCH', args }),
-			forceSet: result => dispatch({ type: 'SET_RESULT', result }),
+			forceSet: (result) => dispatch({ type: 'SET_RESULT', result }),
 			reset: () => dispatch({ type: 'RESET' }),
 			cancel: () => dispatch({ type: 'CANCEL' }),
 		},
@@ -173,7 +173,7 @@ export function useAsyncAction(fn, deps) {
 }
 
 export function useAsyncActions(handlers) {
-	return useAsyncAction(function(action, ...args) {
+	return useAsyncAction(function (action, ...args) {
 		return handlers[action].apply(this, args)
 	})
 }
