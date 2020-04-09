@@ -1,20 +1,25 @@
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import { render } from 'react-dom'
-import { CyBuddy } from '@karimsa/cybuddy'
+
+const CyBuddy = React.lazy(() =>
+	import('@karimsa/cybuddy').then(({ CyBuddy }) => ({ default: CyBuddy })),
+)
 
 function App() {
 	if (
 		process.env.NODE_ENV !== 'production' &&
 		new URLSearchParams(location.search).get('testMode') === 'true'
 	) {
-		// Don't do this in production - you should code split and
-		// lazy load this
 		return (
-			<CyBuddy
-				baseURL="http://localhost:1234"
-				verifyTestMode={() => Promise.resolve(process.env.NODE_ENV === 'test')}
-				initialSteps={[]}
-			/>
+			<Suspense fallback={<p>Loading ...</p>}>
+				<CyBuddy
+					baseURL="http://localhost:1234"
+					verifyTestMode={() =>
+						Promise.resolve(process.env.NODE_ENV === 'test')
+					}
+					initialSteps={[]}
+				/>
+			</Suspense>
 		)
 	}
 
