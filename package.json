@@ -6,7 +6,8 @@
 		"start": "concurrently -k 'cd example && NODE_ENV=test npm start' 'npm run watch' 'npm run watch:copy'",
 		"watch": "babel -w src -d dist",
 		"watch:copy": "nodemon -w dist -x 'cp dist/*.js example/node_modules/@karimsa/cybuddy/'",
-		"lint": "eslint src/**/*.jsx"
+		"lint": "eslint src/**/*.jsx",
+		"build": "babel src -d dist"
 	},
 	"license": "MIT",
 	"devDependencies": {
