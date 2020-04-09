@@ -9,10 +9,18 @@ export function RadioSwitch({ value, onChange, children }) {
 			<input
 				className="form-check-input"
 				type="checkbox"
-				value={value}
+				checked={value}
 				onChange={(evt) => onChange(evt.target.checked)}
 			/>
-			<label className="form-check-label">{children}</label>
+			<label
+				className="form-check-label"
+				onClick={(evt) => {
+					evt.preventDefault()
+					onChange(!value)
+				}}
+			>
+				{children}
+			</label>
 		</div>
 	)
 }
