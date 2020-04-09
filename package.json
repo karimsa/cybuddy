@@ -1,0 +1,45 @@
+{
+	"name": "@karimsa/cybuddy",
+	"version": "0.0.0",
+	"main": "dist/index.js",
+	"scripts": {
+		"start": "concurrently -k 'cd example && NODE_ENV=test npm start' 'npm run watch' 'npm run watch:copy'",
+		"watch": "babel -w src -d dist",
+		"watch:copy": "nodemon -w dist -x 'cp dist/*.js example/node_modules/@karimsa/cybuddy/'"
+	},
+	"license": "MIT",
+	"devDependencies": {
+		"@babel/cli": "^7.8.4",
+		"@babel/core": "^7.9.0",
+		"@babel/preset-env": "^7.9.5",
+		"@babel/preset-react": "^7.9.4",
+		"babel-eslint": "^10.1.0",
+		"babel-plugin-emotion": "^10.0.33",
+		"concurrently": "^5.1.0",
+		"eslint": "^6.8.0",
+		"eslint-config-prettier": "^6.10.1",
+		"eslint-plugin-import": "^2.20.2",
+		"eslint-plugin-node": "^11.1.0",
+		"eslint-plugin-prettier": "^3.1.2",
+		"eslint-plugin-promise": "^4.2.1",
+		"eslint-plugin-react": "^7.19.0",
+		"eslint-plugin-react-hooks": "^3.0.0",
+		"eslint-plugin-standard": "^4.0.1",
+		"nodemon": "^2.0.3",
+		"prettier": "^2.0.4"
+	},
+	"dependencies": {
+		"@emotion/core": "^10.0.28",
+		"babel-polyfill": "^6.26.0",
+		"bootstrap": "^4.4.1",
+		"jquery": "^3.4.1",
+		"js-cookie": "^2.2.1",
+		"prop-types": "^15.7.2",
+		"react": "^16.13.1",
+		"uuid": "^7.0.3"
+	},
+	"peerDependencies": {
+		"react": ">=16.8.0",
+		"react-dom": ">=16.8.0"
+	}
+}
