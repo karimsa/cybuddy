@@ -34,14 +34,14 @@ function Home() {
 			<p>This is a paragraph</p>
 			<p>Counter: {counter}</p>
 			<button
-				data-test="btn-increase"
+				data-test="btn-decrease"
 				type="button"
 				onClick={() => setCounter(counter - 1)}
 			>
 				-
 			</button>
 			<button
-				data-test="btn-decrease"
+				data-test="btn-increase"
 				type="button"
 				onClick={() => setCounter(counter + 1)}
 			>
