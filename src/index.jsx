@@ -1,6 +1,5 @@
 /** @jsx jsx */
 
-import 'bootstrap/dist/css/bootstrap.min.css'
 import 'babel-polyfill'
 import $ from 'jquery'
 import React, { useEffect, createRef } from 'react'
@@ -9,6 +8,7 @@ import { v4 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
 import PropTypes from 'prop-types'
 
+import './bootstrap'
 import { RadioSwitch } from './radio-switch'
 import { Alert } from './alert'
 import { Spinner } from './spinner'
