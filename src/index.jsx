@@ -716,10 +716,11 @@ function TestHelperChild({
 															[
 																[
 																	`/* eslint-disable */`,
-																	`const helpers = require('./helpers')`,
+																	`const helpers = require('@karimsa/cybuddy/helpers')`,
 																	``,
 																	`describe('${testFile.name}', () => {`,
 																	`\tit('${testFile.description}', () => {`,
+																	`\t\tcy.visit('${defaultPathname}')`,
 																	testFile.steps
 																		.map((step, index) => {
 																			const stepCode = generateCode(step)
