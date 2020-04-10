@@ -24,6 +24,21 @@ function App() {
 							action: 'reset',
 						},
 					]}
+					actions={[
+						{
+							action: 'console',
+							label: 'write to the console',
+							params: [
+								{
+									key: 'message',
+									type: 'text',
+									defaultValue: 'hello, world',
+								},
+							],
+							generateCode: (step) => `console.warn('${step.args.message}')`,
+							runStep: (step) => console.warn(step.args.message),
+						},
+					]}
 				/>
 			</Suspense>
 		)
