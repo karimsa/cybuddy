@@ -3,6 +3,10 @@ import { render } from 'react-dom'
 
 const CyBuddy = lazy(() => import('@karimsa/cybuddy'))
 
+import('jquery').then(($) => {
+	window.$ = $
+})
+
 function App() {
 	if (
 		process.env.NODE_ENV !== 'production' &&
