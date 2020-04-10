@@ -653,7 +653,7 @@ function TestHelperChild({
 															})
 														}}
 													>
-														<i className="fas fa-hand-point-up" />
+														👆
 													</button>
 													<button
 														type="button"
@@ -673,21 +673,21 @@ function TestHelperChild({
 															})
 														}}
 													>
-														<i className="fas fa-hand-point-down" />
+														👇
 													</button>
 													<button
 														type="button"
 														className="btn btn-sm btn-danger mr-2"
 														onClick={() => setTestStep(step)}
 													>
-														<i className="fas fa-edit" />
+														📝
 													</button>
 													<button
 														type="button"
 														className="btn btn-sm btn-warning"
 														onClick={() => runStep(step)}
 													>
-														Run step
+														Run
 													</button>
 												</div>
 											</div>
