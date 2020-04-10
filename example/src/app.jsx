@@ -1,9 +1,7 @@
-import React, { useState, Suspense } from 'react'
+import React, { useState, Suspense, lazy } from 'react'
 import { render } from 'react-dom'
 
-const CyBuddy = React.lazy(() =>
-	import('@karimsa/cybuddy').then(({ CyBuddy }) => ({ default: CyBuddy })),
-)
+const CyBuddy = lazy(() => import('@karimsa/cybuddy'))
 
 function App() {
 	if (
@@ -17,7 +15,11 @@ function App() {
 					verifyTestMode={() =>
 						Promise.resolve(process.env.NODE_ENV === 'test')
 					}
-					initialSteps={[]}
+					initialSteps={[
+						{
+							action: 'reset',
+						},
+					]}
 				/>
 			</Suspense>
 		)

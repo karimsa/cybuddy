@@ -572,7 +572,12 @@ function TestHelperChild({
 							</div>
 
 							{!testStep && (
-								<div className="mt-4 mb-5">
+								<div
+									className="mt-4 mb-5"
+									css={css`
+										padding-bottom: 9rem;
+									`}
+								>
 									<input
 										type="text"
 										className="mb-2 form-control"
@@ -595,12 +600,6 @@ function TestHelperChild({
 											})
 										}
 									/>
-
-									{runningState?.error && (
-										<div className="mb-4">
-											<Alert type="danger">{String(runningState.error)}</Alert>
-										</div>
-									)}
 
 									<p className="text-muted text-uppercase">Steps</p>
 									{testFile.steps.map((step, index) => (
@@ -694,83 +693,97 @@ function TestHelperChild({
 										</div>
 									))}
 
-									<div className="d-flex justify-content-between">
-										<button
-											type="button"
-											className="btn btn-primary"
-											onClick={() => {
-												const objectURL = URL.createObjectURL(
-													new Blob(
-														[
+									<div
+										className="position-fixed col-4 col-xl-3 p-4 bg-dark"
+										css={css`
+											bottom: 0;
+											left: 0;
+										`}
+									>
+										{runningState?.error && (
+											<Alert type="danger" dismissable={true} className="mb-4">
+												{String(runningState.error)}
+											</Alert>
+										)}
+
+										<div className="d-flex justify-content-between">
+											<button
+												type="button"
+												className="btn btn-primary"
+												onClick={() => {
+													const objectURL = URL.createObjectURL(
+														new Blob(
 															[
-																`/* eslint-disable */`,
-																`const helpers = require('./helpers')`,
-																``,
-																`describe('${testFile.name}', () => {`,
-																`\tit('${testFile.description}', () => {`,
-																testFile.steps
-																	.map((step, index) => {
-																		const stepCode = generateCode(step)
-																			.split('\n')
-																			.map((l) => '\t\t' + l)
-																			.join('\n')
-																		if (
-																			testFile.checksErrorsAfterEveryStep &&
-																			index > 0
-																		) {
-																			return (
-																				stepCode +
-																				`\n\t\tcy.get('.alert-danger').should('not.exist')`
-																			)
-																		}
-																		return stepCode
-																	})
-																	.filter((s) => s.trim())
-																	.join('\n\n'),
-																`\t})`,
-																`})`,
-																``,
-																`module.exports = ${JSON.stringify(
-																	testFile,
-																	null,
-																	'\t',
-																)}`,
-																``,
-															].join('\n'),
-														],
-														{ type: 'text/plain' },
-													),
-												)
-												const a = $(
-													`<a href="${objectURL}" download="${testFile.name}" class="d-none"></a>`,
-												)
-													.appendTo('body')
-													.get(0)
-												a.click()
-												$(a).remove()
-												setTestFile()
-											}}
-										>
-											Save file
-										</button>
-										{!runningState?.running && (
-											<button
-												type="button"
-												className="btn btn-success"
-												onClick={() => dispatch({ type: 'start' })}
+																[
+																	`/* eslint-disable */`,
+																	`const helpers = require('./helpers')`,
+																	``,
+																	`describe('${testFile.name}', () => {`,
+																	`\tit('${testFile.description}', () => {`,
+																	testFile.steps
+																		.map((step, index) => {
+																			const stepCode = generateCode(step)
+																				.split('\n')
+																				.map((l) => '\t\t' + l)
+																				.join('\n')
+																			if (
+																				testFile.checksErrorsAfterEveryStep &&
+																				index > 0
+																			) {
+																				return (
+																					stepCode +
+																					`\n\t\tcy.get('.alert-danger').should('not.exist')`
+																				)
+																			}
+																			return stepCode
+																		})
+																		.filter((s) => s.trim())
+																		.join('\n\n'),
+																	`\t})`,
+																	`})`,
+																	``,
+																	`module.exports = ${JSON.stringify(
+																		testFile,
+																		null,
+																		'\t',
+																	)}`,
+																	``,
+																].join('\n'),
+															],
+															{ type: 'text/plain' },
+														),
+													)
+													const a = $(
+														`<a href="${objectURL}" download="${testFile.name}" class="d-none"></a>`,
+													)
+														.appendTo('body')
+														.get(0)
+													a.click()
+													$(a).remove()
+													setTestFile()
+												}}
 											>
-												Run steps
+												Save file
 											</button>
-										)}
-										{runningState?.running && (
-											<button
-												type="button"
-												className="btn btn-danger"
-												onClick={() => dispatch({ type: 'stop' })}
-											>
-												Stop
-											</button>
-										)}
+											{!runningState?.running && (
+												<button
+													type="button"
+													className="btn btn-success"
+													onClick={() => dispatch({ type: 'start' })}
+												>
+													Run steps
+												</button>
+											)}
+											{runningState?.running && (
+												<button
+													type="button"
+													className="btn btn-danger"
+													onClick={() => dispatch({ type: 'stop' })}
+												>
+													Stop
+												</button>
+											)}
+										</div>
 									</div>
 								</div>
 							)}
@@ -1313,7 +1326,7 @@ TestHelperChild.propTypes = {
 	isXHRAllowed: PropTypes.func.isRequired,
 }
 
-export function CyBuddy(props) {
+export default function CyBuddy(props) {
 	const testModeState = useAsync(props.verifyTestMode)
 
 	if (testModeState.status === 'inprogress') {
