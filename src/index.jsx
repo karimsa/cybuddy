@@ -1,6 +1,6 @@
 /** @jsx jsx */
 
-import 'babel-polyfill'
+import 'regenerator-runtime/runtime'
 import $ from 'jquery'
 import React, { useEffect, createRef } from 'react'
 import { css, jsx } from '@emotion/core'
@@ -1328,7 +1328,7 @@ TestHelperChild.propTypes = {
 }
 
 export default function CyBuddy(props) {
-	const testModeState = useAsync(props.verifyTestMode)
+	const testModeState = useAsync(props.verifyTestMode ?? (() => true))
 
 	if (testModeState.status === 'inprogress') {
 		return (
@@ -1356,6 +1356,7 @@ export default function CyBuddy(props) {
 		onEnvReset: props.onEnvReset ?? noop,
 		isXHRAllowed: props.isXHRAllowed ?? (() => true),
 		defaultPathname: props.defaultPathname ?? '/',
+		baseURL: props.baseURL ?? `${location.protocol}//${location.host}`,
 		execStep: null,
 	}
 	childProps.execStep = execStepUnbound.bind(null, childProps)
@@ -1363,9 +1364,8 @@ export default function CyBuddy(props) {
 	return <TestHelperChild {...childProps} />
 }
 CyBuddy.propTypes = {
-	verifyTestMode: PropTypes.func.isRequired,
-	baseURL: PropTypes.string.isRequired,
-
+	verifyTestMode: PropTypes.func,
+	baseURL: PropTypes.string,
 	onEnvReset: PropTypes.func,
 	isXHRAllowed: PropTypes.func,
 	defaultPathname: PropTypes.string,

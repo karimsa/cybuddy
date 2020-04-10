@@ -3,11 +3,11 @@
 	"version": "0.0.0",
 	"main": "dist/index.js",
 	"scripts": {
-		"start": "concurrently -k 'cd example_create-react-app && NODE_ENV=test npm start' 'npm run watch' 'npm run watch:copy'",
-		"start-parcel": "concurrently -k 'cd example_parcel && NODE_ENV=test npm start' 'npm run watch' 'npm run watch-parcel:copy'",
+		"start": "concurrently -k 'cd examples/create-react-app && NODE_ENV=test npm start' 'npm run watch' 'npm run watch:copy'",
+		"start-parcel": "concurrently -k 'cd examples/parcel && NODE_ENV=test npm start' 'npm run watch' 'npm run watch-parcel:copy'",
 		"watch": "babel -w src -d dist",
-		"watch:copy": "nodemon -w dist -x 'mkdir -p example_create-react-app/node_modules/@karimsa/cybuddy/ && cp dist/*.js example_create-react-app/node_modules/@karimsa/cybuddy/'",
-		"watch-parcel:copy": "nodemon -w dist -x 'mkdir -p example_parcel/node_modules/@karimsa/cybuddy/ && cp dist/*.js example_parcel/node_modules/@karimsa/cybuddy/'",
+		"watch:copy": "nodemon -w dist -x 'mkdir -p examples/create-react-app/node_modules/@karimsa/cybuddy/ && cp dist/*.js examples/create-react-app/node_modules/@karimsa/cybuddy/'",
+		"watch-parcel:copy": "nodemon -w dist -x 'mkdir -p exampls/parcel/node_modules/@karimsa/cybuddy/ && cp dist/*.js examples/parcel/node_modules/@karimsa/cybuddy/'",
 		"lint": "eslint src/**/*.jsx",
 		"build": "babel src -d dist"
 	},
@@ -34,11 +34,11 @@
 	},
 	"dependencies": {
 		"@emotion/core": "^10.0.28",
-		"babel-polyfill": "^6.26.0",
 		"bootstrap": "^4.4.1",
 		"jquery": "^3.4.1",
 		"js-cookie": "^2.2.1",
 		"prop-types": "^15.7.2",
+		"regenerator-runtime": "^0.13.5",
 		"uuid": "^7.0.3"
 	},
 	"peerDependencies": {

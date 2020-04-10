@@ -15,10 +15,6 @@ export default function App() {
 		return (
 			<Suspense fallback={<p>Loading ...</p>}>
 				<CyBuddy
-					baseURL="http://localhost:1234"
-					verifyTestMode={() =>
-						Promise.resolve(process.env.NODE_ENV === 'test')
-					}
 					initialSteps={[
 						{
 							action: 'reset',
@@ -57,4 +53,4 @@ function Home() {
 	)
 }
 
-render(<App />, document.getElementById('app'))
+render(<App />, document.getElementById('root'))
