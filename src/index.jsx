@@ -1337,15 +1337,16 @@ export function CyBuddy(props) {
 		)
 	}
 
-	return (
-		<TestHelperChild
-			{...props}
-			execStep={execStepUnbound.bind(null, props)}
-			onEnvReset={props.onEnvReset ?? noop}
-			isXHRAllowed={props.isXHRAllowed ?? (() => true)}
-			defaultPathname={props.defaultPathname ?? '/'}
-		/>
-	)
+	const childProps = {
+		...props,
+		onEnvReset: props.onEnvReset ?? noop,
+		isXHRAllowed: props.isXHRAllowed ?? (() => true),
+		defaultPathname: props.defaultPathname ?? '/',
+		execStep: null,
+	}
+	childProps.execStep = execStepUnbound.bind(null, childProps)
+
+	return <TestHelperChild {...childProps} />
 }
 CyBuddy.propTypes = {
 	verifyTestMode: PropTypes.func.isRequired,
