@@ -474,7 +474,7 @@ function TestHelperChild({
 		>
 			<div className="row no-gutters h-100">
 				<div
-					className="col-3 p-5 bg-light h-100"
+					className="col-4 col-xl-3 p-4 bg-light h-100"
 					css={css`
 						overflow-x: hidden;
 						overflow-y: auto;
@@ -482,6 +482,8 @@ function TestHelperChild({
 				>
 					{!testFile && (
 						<div className="d-flex align-items-center justify-content-center flex-column h-100">
+							<h1 className="text-center mb-4">CyBuddy</h1>
+
 							{openFile.error && (
 								<Alert type="danger">{String(openFile.error)}</Alert>
 							)}
@@ -544,15 +546,18 @@ function TestHelperChild({
 							</button>
 						</div>
 					)}
+
 					{testFile && (
 						<React.Fragment>
+							<h1 className="text-center mb-4">CyBuddy</h1>
+
 							<RadioSwitch
 								value={mode === 'navigation'}
 								onChange={(nav) => setMode(nav ? 'navigation' : 'pointer')}
 							>
 								Allow navigation
 							</RadioSwitch>
-							<div className="mt-4">
+							<div className="mt-3">
 								<RadioSwitch
 									value={Boolean(testFile.checksErrorsAfterEveryStep)}
 									onChange={(checksErrorsAfterEveryStep) =>
@@ -567,10 +572,10 @@ function TestHelperChild({
 							</div>
 
 							{!testStep && (
-								<div className="my-5">
+								<div className="mt-4 mb-5">
 									<input
 										type="text"
-										className="mb-5 form-control"
+										className="mb-2 form-control"
 										value={testFile.name}
 										onChange={(evt) =>
 											setTestFile({
@@ -607,7 +612,7 @@ function TestHelperChild({
 											}`}
 											key={step.id}
 										>
-											<div className="card-body">
+											<div className="card-body p-3">
 												<span className="badge badge-primary text-uppercase mr-2">
 													{step.action}
 												</span>
