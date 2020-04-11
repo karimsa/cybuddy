@@ -33,11 +33,9 @@
 	"dependencies": {
 		"@emotion/core": "^10.0.28",
 		"babel-polyfill": "^6.26.0",
-		"bootstrap": "^4.4.1",
 		"jquery": "^3.4.1",
 		"js-cookie": "^2.2.1",
 		"prop-types": "^15.7.2",
-		"react": "^16.13.1",
 		"uuid": "^7.0.3"
 	},
 	"peerDependencies": {
