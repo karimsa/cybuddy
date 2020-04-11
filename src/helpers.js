@@ -9,12 +9,10 @@ try {
 
 const API_URL = Cypress.env('API_URL')
 
-beforeEach(() => {
-	cy.request('POST', `${API_URL}/api/v0/testing/reset-db`)
-	cy.server()
+export function resetEnv() {
 	cy.clearCookies()
 	cy.clearLocalStorage()
-})
+}
 
 export function waitForXHR({ id, method, property, value }) {
 	if (property === 'href') {

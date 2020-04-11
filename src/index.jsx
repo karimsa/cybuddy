@@ -292,6 +292,7 @@ function TestHelperChild({
 }) {
 	const iframeRef = createRef()
 	const openFileRef = createRef()
+	const downloadFileRef = createRef()
 	const [defaultSrc] = useLocalState(
 		'test:iframeSrc',
 		new URL(defaultPathname, baseURL).href,
@@ -488,6 +489,9 @@ function TestHelperChild({
 		}
 	}, [testStep?.selectType, testStep?.selector])
 
+	const testStepIsSaved =
+		testStep && testFile.steps.find((step) => step.id === testStep.id)
+
 	return (
 		<div
 			className="container-fluid px-0 overflow-hidden"
@@ -569,6 +573,14 @@ function TestHelperChild({
 							</button>
 						</div>
 					)}
+
+					{/* Used later for downloading files, but must exist outside of testStep context */}
+					<a
+						data-test="save-file"
+						ref={downloadFileRef}
+						href="#"
+						className="d-none"
+					/>
 
 					{testFile && (
 						<React.Fragment>
@@ -743,6 +755,7 @@ function TestHelperChild({
 																	``,
 																	`describe('${testFile.name}', () => {`,
 																	`\tit('${testFile.description}', () => {`,
+																	`\t\tCypress.config('baseUrl', '${baseURL}')`,
 																	`\t\tcy.visit('${defaultPathname}')`,
 																	testFile.steps
 																		.map((step, index) => {
@@ -777,13 +790,15 @@ function TestHelperChild({
 															{ type: 'text/plain' },
 														),
 													)
-													const a = $(
-														`<a href="${objectURL}" download="${testFile.name}" class="d-none"></a>`,
-													)
-														.appendTo('body')
-														.get(0)
-													a.click()
-													$(a).remove()
+
+													$(downloadFileRef.current)
+														.attr('download', testFile.name)
+														.attr('href', objectURL)
+
+													if (!window.Cypress) {
+														downloadFileRef.current.click()
+													}
+
 													setTestFile()
 												}}
 											>
@@ -918,6 +933,7 @@ function TestHelperChild({
 																: 'Content'}
 														</label>
 														<input
+															data-test="input-selector"
 															type="text"
 															className="form-control"
 															value={testStep.selector}
@@ -936,6 +952,7 @@ function TestHelperChild({
 											<div className="form-group">
 												<label className="col-form-label">Action</label>
 												<select
+													data-test="input-action"
 													className="form-control"
 													value={testStep.action}
 													onChange={(evt) => {
@@ -1165,25 +1182,25 @@ function TestHelperChild({
 												type="submit"
 												className="btn btn-block btn-primary"
 											>
-												{testFile.steps.find((step) => step.id === testStep.id)
-													? 'Update step'
-													: 'Add step'}
+												{testStepIsSaved ? 'Update step' : 'Add step'}
 											</button>
-											<button
-												type="button"
-												className="btn btn-block btn-danger"
-												onClick={() => {
-													setTestStep()
-													setTestFile({
-														...testFile,
-														steps: testFile.steps.filter(
-															(step) => step.id !== testStep.id,
-														),
-													})
-												}}
-											>
-												Delete step
-											</button>
+											{testStepIsSaved && (
+												<button
+													type="button"
+													className="btn btn-block btn-danger"
+													onClick={() => {
+														setTestStep()
+														setTestFile({
+															...testFile,
+															steps: testFile.steps.filter(
+																(step) => step.id !== testStep.id,
+															),
+														})
+													}}
+												>
+													Delete step
+												</button>
+											)}
 											<button
 												type="button"
 												className="btn btn-block btn-secondary"
@@ -1283,6 +1300,7 @@ function TestHelperChild({
 
 					{mode === 'pointer' && (
 						<div
+							data-test="pointer-overlay"
 							className="w-100 h-100 position-absolute"
 							css={css`
 								top: 0;
