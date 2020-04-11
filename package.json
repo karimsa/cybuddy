@@ -8,7 +8,8 @@
 		"watch:copy": "nodemon -w dist -x 'cp dist/*.js example/node_modules/@karimsa/cybuddy/'",
 		"lint": "eslint src/**/*.jsx",
 		"build": "babel src -d dist",
-		"postinstall": "./scripts/postinstall.sh"
+		"postinstall": "./scripts/postinstall.sh",
+		"test": "cypress run"
 	},
 	"license": "MIT",
 	"devDependencies": {
