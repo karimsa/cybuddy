@@ -1,8 +1,8 @@
 /* eslint-env mocha */
 /* globals cy */
 
-describe('blah', () => {
-	it('testing', () => {
+describe('<Counter /> with parcel', () => {
+	it('should generate tests with clicks', () => {
 		cy.visit('http://localhost:1234')
 		cy.contains('Counter: 0')
 		cy.get('[data-test="btn-increase"]').click()
@@ -20,31 +20,9 @@ describe('blah', () => {
 		cy.contains('CyBuddy')
 		cy.contains('Create new empty test').click()
 		cy.contains('Run steps')
-		cy.window().then((window) => {
-			window.performOverlayClick = function (selector) {
-				const iframeBounding = window.document
-					.querySelector('iframe')
-					.getBoundingClientRect()
-				const { left, top, height, width } = window.document
-					.querySelector('iframe')
-					.contentWindow.document.querySelector(selector)
-					.getBoundingClientRect()
-				const evt = new MouseEvent('click', {
-					clientX: left + width / 2 + iframeBounding.left,
-					clientY: top + height / 2,
-					bubbles: true,
-					view: window,
-				})
-				window.document
-					.querySelector('[data-test="pointer-overlay"]')
-					.dispatchEvent(evt)
-			}
-		})
 
 		for (let i = 0; i < 3; i++) {
-			cy.window().then((w) =>
-				w.performOverlayClick('[data-test="btn-increase"]'),
-			)
+			cy.simulateOverlayClick('[data-test="btn-increase"]')
 
 			// Verify that the application did not catch the click
 			cy.iframe().contains(`Counter: ${i}`)

@@ -3,6 +3,27 @@
 
 const cyHelpers = require('../../dist/helpers')
 
+Cypress.Commands.add('simulateOverlayClick', (selector) => {
+	cy.window().then((window) => {
+		const iframeBounding = window.document
+			.querySelector('iframe')
+			.getBoundingClientRect()
+		const { left, top, height, width } = window.document
+			.querySelector('iframe')
+			.contentWindow.document.querySelector(selector)
+			.getBoundingClientRect()
+		const evt = new MouseEvent('click', {
+			clientX: left + width / 2 + iframeBounding.left,
+			clientY: top + height / 2,
+			bubbles: true,
+			view: window,
+		})
+		window.document
+			.querySelector('[data-test="pointer-overlay"]')
+			.dispatchEvent(evt)
+	})
+})
+
 Cypress.Commands.add('iframe', () => {
 	return cy.get('iframe').its('0.contentDocument.body').then(cy.wrap)
 })
