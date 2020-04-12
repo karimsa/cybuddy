@@ -1,4 +1,4 @@
-import { useState, useEffect, createRef } from 'react'
+import { useState, useEffect } from 'react'
 
 const kPromise = Symbol('kPromise')
 
@@ -36,20 +36,20 @@ export function useReducer(reducer, initialState) {
 		return useReducer(objectReducer.bind(null, reducer), initialState)
 	}
 
-	const ref = createRef()
-	const [state, setState] = useState((ref.current = initialState))
+	const [state, setState] = useState(initialState)
 
 	return [
 		state,
 		(action) => {
-			const nextState = reducer(ref.current, action, reducer)
-			if (nextState != null && 'then' in nextState) {
-				nextState.then((value) => {
-					setState((ref.current = value))
-				})
-			} else {
-				setState((ref.current = nextState))
-			}
+			setState((state) => {
+				const nextState = reducer(state, action, reducer)
+				if (nextState != null && 'then' in nextState) {
+					nextState.then(setState)
+					return state
+				} else {
+					return nextState
+				}
+			})
 		},
 	]
 }
