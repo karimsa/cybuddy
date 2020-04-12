@@ -16,73 +16,220 @@ import { useLocalState, useAsync, useReducer, useAsyncAction } from './hooks'
 
 const iframeXHREvents = []
 
-function generateCode(testStep) {
-	switch (testStep.action) {
-		case 'reset':
-			return ``
+const cyStub = {
+	clearCookies() {
+		for (const key in Cookies.get()) {
+			Cookies.remove(key)
+		}
+	},
+	clearLocalStorage() {
+		const keys = []
+		const iframe = $('iframe').get(0)
+		for (let i = 0; i < iframe.contentWindow.localStorage.length; i++) {
+			if (!iframe.contentWindow.localStorage.key(i).startsWith('test:')) {
+				keys.push(iframe.contentWindow.localStorage.key(i))
+			}
+		}
+		for (const key of keys) {
+			iframe.contentWindow.localStorage.removeItem(key)
+		}
+	},
+	visit(pathname) {
+		const iframe = $('iframe').get(0)
+		iframe.src = new URL(pathname, iframe.src).href
+	},
+}
 
-		case 'type':
-			return `cy.get('${testStep.selector}').clear().type('${testStep.args.typeContent}')`
-
-		case 'click':
+const defaultActions = [
+	{
+		action: 'type',
+		label: 'enter value into input',
+		params: [
+			{
+				key: 'value',
+				type: 'string',
+			},
+		],
+		generateCode: (testStep) =>
+			`cy.get('${testStep.selector}').clear().type('${testStep.args.typeContent}')`,
+		runStep: (testStep, iframe) =>
+			setInputValue(
+				$(iframe).contents().find(createSelector(testStep)).get(0),
+				testStep.args.typeContent,
+			),
+	},
+	{
+		action: 'click',
+		label: 'click element',
+		generateCode(testStep) {
 			if (testStep.selectType === 'content') {
 				return `cy.contains('${testStep.selector}').click()`
 			}
 			return `cy.get('${testStep.selector}').click()`
-
-		case 'location':
+		},
+		runStep: (testStep, iframe) => {
+			const elm = $(iframe).contents().find(createSelector(testStep)).get(0)
+			if (elm) {
+				elm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+			}
+		},
+	},
+	{
+		action: 'location',
+		label: 'verify page location',
+		generateCode: (testStep) => {
 			if (testStep.args.locationMatchType === 'startsWith') {
 				return `cy.location('${testStep.args.locationProperty}').should('match', new RegExp('^${testStep.selector}'))`
 			}
 			return `cy.location('${testStep.args.locationProperty}').should('eq', '${testStep.selector}')`
-
-		case 'exist':
+		},
+		runStep: (testStep, iframe) => {
+			const currentValue =
+				iframe.contentWindow.location[testStep.args.locationProperty]
+			if (testStep.args.locationMatchType === 'startsWith') {
+				if (currentValue.match(new RegExp(`^${testStep.selector}`))) {
+					return
+				}
+			} else if (currentValue === testStep.selector) {
+				return
+			}
+			throw new Error(
+				`Unexpected ${testStep.args.locationProperty}: '${currentValue}' (expected '${testStep.selector}')`,
+			)
+		},
+	},
+	{
+		action: 'exist',
+		label: 'should exist',
+		generateCode(testStep) {
 			if (testStep.selectType === 'content') {
 				return `cy.contains('${testStep.selector}')`
 			}
 			return `cy.get('${testStep.selector}')`
-
-		case 'notExist':
+		},
+		runStep: (testStep, iframe) => {
+			if ($(iframe).contents().find(createSelector(testStep)).length === 0) {
+				throw new Error(
+					`Could not find element matching: '${testStep.selector}'`,
+				)
+			}
+		},
+	},
+	{
+		action: 'notExist',
+		label: 'should not exist',
+		generateCode(testStep) {
 			if (testStep.selectType === 'content') {
 				return `cy.contains('${testStep.selector}').should('not.exist')`
 			}
 			return `cy.get('${testStep.selector}').should('not.exist')`
-
-		case 'goto':
-			return `cy.visit('${testStep.selector}')`
-
-		case 'select':
-			return `cy.get('${testStep.selector}').select('${testStep.args.typeContent}')`
-
-		case 'reload':
-			return `cy.reload()`
-
-		case 'xhr':
-			return [
+		},
+		runStep: (testStep, iframe) => {
+			if ($(iframe).contents().find(createSelector(testStep)).length > 0) {
+				throw new Error(
+					`Found element matching: '${testStep.selector}' (should not exist)`,
+				)
+			}
+		},
+	},
+	{
+		action: 'goto',
+		label: 'goto a page',
+		generateCode: (testStep) => `cy.visit('${testStep.selector}')`,
+		runStep: (testStep) => {
+			cyStub.visit(testStep.selector)
+		},
+	},
+	{
+		action: 'select',
+		label: 'select value from dropdown',
+		generateCode: (testStep) =>
+			`cy.get('${testStep.selector}').select('${testStep.args.typeContent}')`,
+		runStep: (testStep, iframe) =>
+			setInputValue(
+				$(iframe).contents().find(createSelector(testStep)).get(0),
+				testStep.args.typeContent,
+			),
+	},
+	{
+		action: 'reload',
+		label: 'refresh the page',
+		generateCode: () => `cy.reload()`,
+		runStep: (_, iframe) => {
+			iframe.contentWindow.location.reload()
+		},
+	},
+	{
+		action: 'xhr',
+		label: 'wait for request',
+		generateCode: (testStep) =>
+			[
 				`helpers.waitForXHR({`,
 				`\tid: '${testStep.id}',`,
 				`\tmethod: '${testStep.args.xhrMethod}',`,
 				`\tproperty: '${testStep.args.xhrProperty}',`,
 				`\tvalue: '${testStep.selector}',`,
 				`})`,
-			].join('\n')
-
-		case 'disabled':
+			].join('\n'),
+		runStep: (testStep) => {
+			for (
+				let xhr = iframeXHREvents.shift();
+				xhr;
+				xhr = iframeXHREvents.shift()
+			) {
+				console.warn({ xhr, testStep })
+				if (xhr.method === testStep.args.xhrMethod) {
+					if (
+						testStep.args.xhrProperty === 'pathname' &&
+						xhr.pathname === testStep.selector
+					) {
+						return
+					} else if (
+						testStep.args.xhrProperty === 'href' &&
+						xhr.href === testStep.selector
+					) {
+						return
+					}
+				}
+			}
+			throw new Error(
+				`Could not find an XHR request matching: ${testStep.args.xhrMethod} ${testStep.selector}`,
+			)
+		},
+	},
+	{
+		action: 'disabled',
+		label: 'should be disabled',
+		generateCode: (testStep) => {
 			if (testStep.selectType === 'content') {
 				return `cy.contains('${testStep.selector}').should('be.disabled')`
 			}
 			return `cy.get('${testStep.selector}').should('be.disabled')`
-
-		case 'notDisabled':
+		},
+		runStep: (testStep, iframe) => {
+			if (
+				!$(iframe).contents().find(createSelector(testStep)).is(':disabled')
+			) {
+				throw new Error(`'${testStep.selector}' is not disabled (should be)`)
+			}
+		},
+	},
+	{
+		action: 'notDisabled',
+		label: 'should not be disabled',
+		generateCode: (testStep) => {
 			if (testStep.selectType === 'content') {
 				return `cy.contains('${testStep.selector}').should('not.be.disabled')`
 			}
 			return `cy.get('${testStep.selector}').should('not.be.disabled')`
-
-		default:
-			throw new Error(`Unrecognized action: ${testStep.action}`)
-	}
-}
+		},
+		runStep: (testStep, iframe) => {
+			if ($(iframe).contents().find(createSelector(testStep)).is(':disabled')) {
+				throw new Error(`'${testStep.selector}' is disabled (should not be)`)
+			}
+		},
+	},
+]
 
 // Sourced from the interwebs
 function setInputValue(input, value) {
@@ -123,132 +270,6 @@ function createSelector(testStep) {
 	return testStep.selector
 }
 
-async function execStepUnbound({ onEnvReset, baseURL }, testStep, iframe) {
-	switch (testStep.action) {
-		case 'reset':
-			{
-				// Clear storage
-				const keys = []
-				for (let i = 0; i < iframe.contentWindow.localStorage.length; i++) {
-					if (!iframe.contentWindow.localStorage.key(i).startsWith('test:')) {
-						keys.push(iframe.contentWindow.localStorage.key(i))
-					}
-				}
-				for (const key of keys) {
-					iframe.contentWindow.localStorage.removeItem(key)
-				}
-
-				// Clear cookies
-				for (const key in Cookies.get()) {
-					Cookies.remove(key)
-				}
-
-				await onEnvReset()
-
-				iframe.contentWindow.location.href = '/'
-			}
-			return
-
-		case 'select':
-		case 'type':
-			setInputValue(
-				$(iframe).contents().find(createSelector(testStep)).get(0),
-				testStep.args.typeContent,
-			)
-			return
-
-		case 'click':
-			{
-				const elm = $(iframe).contents().find(createSelector(testStep)).get(0)
-				if (elm) {
-					elm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-				}
-			}
-			return
-
-		case 'location': {
-			const currentValue =
-				iframe.contentWindow.location[testStep.args.locationProperty]
-			if (testStep.args.locationMatchType === 'startsWith') {
-				if (currentValue.match(new RegExp(`^${testStep.selector}`))) {
-					return
-				}
-			} else if (currentValue === testStep.selector) {
-				return
-			}
-			throw new Error(
-				`Unexpected ${testStep.args.locationProperty}: '${currentValue}' (expected '${testStep.selector}')`,
-			)
-		}
-
-		case 'exist':
-			if ($(iframe).contents().find(createSelector(testStep)).length === 0) {
-				throw new Error(
-					`Could not find element matching: '${testStep.selector}'`,
-				)
-			}
-			return
-
-		case 'notExist':
-			if ($(iframe).contents().find(createSelector(testStep)).length > 0) {
-				throw new Error(
-					`Found element matching: '${testStep.selector}' (should not exist)`,
-				)
-			}
-			return
-
-		case 'goto':
-			iframe.src = `${baseURL}${testStep.selector}`
-			return
-
-		case 'reload':
-			iframe.contentWindow.location.reload()
-			return
-
-		case 'xhr':
-			for (
-				let xhr = iframeXHREvents.shift();
-				xhr;
-				xhr = iframeXHREvents.shift()
-			) {
-				console.warn({ xhr, testStep })
-				if (xhr.method === testStep.args.xhrMethod) {
-					if (
-						testStep.args.xhrProperty === 'pathname' &&
-						xhr.pathname === testStep.selector
-					) {
-						return
-					} else if (
-						testStep.args.xhrProperty === 'href' &&
-						xhr.href === testStep.selector
-					) {
-						return
-					}
-				}
-			}
-			throw new Error(
-				`Could not find an XHR request matching: ${testStep.args.xhrMethod} ${testStep.selector}`,
-			)
-
-		case 'disabled':
-			if (
-				!$(iframe).contents().find(createSelector(testStep)).is(':disabled')
-			) {
-				throw new Error(`'${testStep.selector}' is not disabled (should be)`)
-			}
-			return
-
-		case 'notDisabled':
-			if ($(iframe).contents().find(createSelector(testStep)).is(':disabled')) {
-				throw new Error(`'${testStep.selector}' is disabled (should not be)`)
-			}
-			return
-
-		default:
-			throw new Error(`Unrecognized action: ${testStep.action}`)
-	}
-}
-
 function shorten(text, maxlen) {
 	if (text.length > maxlen) {
 		return text.substr(0, maxlen) + '...'
@@ -262,13 +283,16 @@ function noop() {
 
 function TestHelperChild({
 	initialSteps,
-	execStep,
 	baseURL,
 	defaultPathname,
 	isXHRAllowed,
+	generateCode,
+	execStep,
+	actions,
 }) {
 	const iframeRef = createRef()
 	const openFileRef = createRef()
+	const downloadFileRef = createRef()
 	const [defaultSrc] = useLocalState(
 		'test:iframeSrc',
 		new URL(defaultPathname, baseURL).href,
@@ -465,6 +489,9 @@ function TestHelperChild({
 		}
 	}, [testStep?.selectType, testStep?.selector])
 
+	const testStepIsSaved =
+		testStep && testFile.steps.find((step) => step.id === testStep.id)
+
 	return (
 		<div
 			className="container-fluid px-0 overflow-hidden"
@@ -546,6 +573,14 @@ function TestHelperChild({
 							</button>
 						</div>
 					)}
+
+					{/* Used later for downloading files, but must exist outside of testStep context */}
+					<a
+						data-test="save-file"
+						ref={downloadFileRef}
+						href="#"
+						className="d-none"
+					/>
 
 					{testFile && (
 						<React.Fragment>
@@ -720,6 +755,7 @@ function TestHelperChild({
 																	``,
 																	`describe('${testFile.name}', () => {`,
 																	`\tit('${testFile.description}', () => {`,
+																	`\t\tCypress.config('baseUrl', '${baseURL}')`,
 																	`\t\tcy.visit('${defaultPathname}')`,
 																	testFile.steps
 																		.map((step, index) => {
@@ -754,13 +790,15 @@ function TestHelperChild({
 															{ type: 'text/plain' },
 														),
 													)
-													const a = $(
-														`<a href="${objectURL}" download="${testFile.name}" class="d-none"></a>`,
-													)
-														.appendTo('body')
-														.get(0)
-													a.click()
-													$(a).remove()
+
+													$(downloadFileRef.current)
+														.attr('download', testFile.name)
+														.attr('href', objectURL)
+
+													if (!window.Cypress) {
+														downloadFileRef.current.click()
+													}
+
 													setTestFile()
 												}}
 											>
@@ -895,6 +933,7 @@ function TestHelperChild({
 																: 'Content'}
 														</label>
 														<input
+															data-test="input-selector"
 															type="text"
 															className="form-control"
 															value={testStep.selector}
@@ -913,6 +952,7 @@ function TestHelperChild({
 											<div className="form-group">
 												<label className="col-form-label">Action</label>
 												<select
+													data-test="input-action"
 													className="form-control"
 													value={testStep.action}
 													onChange={(evt) => {
@@ -922,17 +962,11 @@ function TestHelperChild({
 														})
 													}}
 												>
-													<option value="click">click</option>
-													<option value="type">type</option>
-													<option value="select">select</option>
-													<option value="exist">should exist</option>
-													<option value="notExist">should not exist</option>
-													<option value="disabled">should be disabled</option>
-													<option value="notDisabled">should be enabled</option>
-													<option value="reload">reload page</option>
-													<option value="reset">reset tests</option>
-													<option value="goto">goto page</option>
-													<option value="xhr">wait for request</option>
+													{actions.map((action) => (
+														<option value={action.action} key={action.action}>
+															{action.label}
+														</option>
+													))}
 												</select>
 											</div>
 										)}
@@ -1081,6 +1115,52 @@ function TestHelperChild({
 											</div>
 										)}
 
+										{(function () {
+											const action = actions.find(
+												(action) => action.action === testStep.action,
+											)
+											return (
+												action.params &&
+												action.params.map((param) => {
+													if (
+														param.defaultValue != null &&
+														testStep.args[param.key] == null
+													) {
+														setTestStep({
+															...testStep,
+															args: {
+																...testStep.args,
+																[param.key]: param.defaultValue,
+															},
+														})
+													}
+													return (
+														<div className="form-group" key={param.key}>
+															<label className="col-form-label">
+																{param.key}
+															</label>
+															<input
+																type={param.type}
+																className="form-control"
+																value={
+																	testStep.args[param.key] ?? param.defaultValue
+																}
+																onChange={(evt) => {
+																	setTestStep({
+																		...testStep,
+																		args: {
+																			...testStep.args,
+																			[param.key]: evt.target.value,
+																		},
+																	})
+																}}
+															/>
+														</div>
+													)
+												})
+											)
+										})()}
+
 										<div className="form-group">
 											<code>
 												<pre
@@ -1102,25 +1182,25 @@ function TestHelperChild({
 												type="submit"
 												className="btn btn-block btn-primary"
 											>
-												{testFile.steps.find((step) => step.id === testStep.id)
-													? 'Update step'
-													: 'Add step'}
+												{testStepIsSaved ? 'Update step' : 'Add step'}
 											</button>
-											<button
-												type="button"
-												className="btn btn-block btn-danger"
-												onClick={() => {
-													setTestStep()
-													setTestFile({
-														...testFile,
-														steps: testFile.steps.filter(
-															(step) => step.id !== testStep.id,
-														),
-													})
-												}}
-											>
-												Delete step
-											</button>
+											{testStepIsSaved && (
+												<button
+													type="button"
+													className="btn btn-block btn-danger"
+													onClick={() => {
+														setTestStep()
+														setTestFile({
+															...testFile,
+															steps: testFile.steps.filter(
+																(step) => step.id !== testStep.id,
+															),
+														})
+													}}
+												>
+													Delete step
+												</button>
+											)}
 											<button
 												type="button"
 												className="btn btn-block btn-secondary"
@@ -1220,6 +1300,7 @@ function TestHelperChild({
 
 					{mode === 'pointer' && (
 						<div
+							data-test="pointer-overlay"
 							className="w-100 h-100 position-absolute"
 							css={css`
 								top: 0;
@@ -1320,11 +1401,13 @@ function TestHelperChild({
 TestHelperChild.propTypes = {
 	initialSteps: PropTypes.array.isRequired,
 	execStep: PropTypes.func.isRequired,
+	generateCode: PropTypes.func.isRequired,
 	verifyTestMode: PropTypes.func.isRequired,
 	baseURL: PropTypes.string.isRequired,
 	onEnvReset: PropTypes.func.isRequired,
 	defaultPathname: PropTypes.string.isRequired,
 	isXHRAllowed: PropTypes.func.isRequired,
+	actions: PropTypes.array.isRequired,
 }
 
 export default function CyBuddy(props) {
@@ -1351,14 +1434,32 @@ export default function CyBuddy(props) {
 		)
 	}
 
+	const actions = defaultActions.concat(props.actions ?? [])
 	const childProps = {
 		...props,
 		onEnvReset: props.onEnvReset ?? noop,
 		isXHRAllowed: props.isXHRAllowed ?? (() => true),
 		defaultPathname: props.defaultPathname ?? '/',
-		execStep: null,
+		actions,
+		generateCode: (testStep) => {
+			const action = actions.find((action) => action.action === testStep.action)
+			if (!action) {
+				throw new Error(
+					`Unrecognized action specified by step: ${testStep.action}`,
+				)
+			}
+			return action.generateCode(testStep)
+		},
+		execStep: (testStep) => {
+			const action = actions.find((action) => action.action === testStep.action)
+			if (!action) {
+				throw new Error(
+					`Unrecognized action specified by step: ${testStep.action}`,
+				)
+			}
+			return action.runStep(testStep, $('iframe').get(0))
+		},
 	}
-	childProps.execStep = execStepUnbound.bind(null, childProps)
 
 	return <TestHelperChild {...childProps} />
 }
@@ -1366,6 +1467,7 @@ CyBuddy.propTypes = {
 	verifyTestMode: PropTypes.func.isRequired,
 	baseURL: PropTypes.string.isRequired,
 
+	actions: PropTypes.array,
 	onEnvReset: PropTypes.func,
 	isXHRAllowed: PropTypes.func,
 	defaultPathname: PropTypes.string,

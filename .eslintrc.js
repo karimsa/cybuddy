@@ -344,5 +344,31 @@ module.exports = {
 	"env": {
 		"browser": true,
 		"es6": true,
-	}
+	},
+	"overrides": [
+		{
+			"files": ["cypress/**/*.js", "src/helpers.js"],
+			"env": {
+				"mocha": true,
+				"node": true,
+			},
+			"globals": {
+				"cy": true,
+				"Cypress": true,
+			},
+		},
+		{
+			"files": ["src/**/__tests__/**/test-*.js"],
+			"env": {
+				"jest": true,
+				"node": true,
+			},
+		},
+		{
+			"files": ["jest.config.js"],
+			"env": {
+				"node": true,
+			},
+		},
+	],
 }
