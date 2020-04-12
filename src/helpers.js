@@ -1,6 +1,3 @@
-/* globals Cypress, cy */
-/* eslint-env mocha */
-
 try {
 	const _ = Cypress.env
 } catch (error) {

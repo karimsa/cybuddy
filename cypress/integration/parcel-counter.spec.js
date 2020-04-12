@@ -1,6 +1,3 @@
-/* eslint-env mocha */
-/* globals cy */
-
 describe('<Counter /> with parcel', () => {
 	it('should generate tests with clicks', () => {
 		cy.visit('http://localhost:1234')

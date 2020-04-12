@@ -1,5 +1,3 @@
-/* eslint-env jest */
-
 const puppeteer = require('puppeteer')
 
 test('Counter', async () => {

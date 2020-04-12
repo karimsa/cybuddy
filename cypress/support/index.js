@@ -1,6 +1,3 @@
-/* eslint-env mocha */
-/* globals Cypress, cy */
-
 const cyHelpers = require('../../dist/helpers')
 
 Cypress.Commands.add('simulateOverlayClick', (selector) => {
