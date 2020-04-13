@@ -2,6 +2,7 @@ import React, { useState, Suspense, lazy } from 'react'
 import { render } from 'react-dom'
 
 const CyBuddy = lazy(() => import('@karimsa/cybuddy'))
+const params = new URLSearchParams(location.search)
 
 import('jquery').then(($) => {
 	window.$ = $
@@ -10,12 +11,13 @@ import('jquery').then(($) => {
 function App() {
 	if (
 		process.env.NODE_ENV !== 'production' &&
-		new URLSearchParams(location.search).get('testMode') === 'true'
+		params.get('testMode') === 'true'
 	) {
 		return (
 			<Suspense fallback={<p>Loading ...</p>}>
 				<CyBuddy
 					baseURL="http://localhost:1234"
+					defaultPathname={`/?async=${params.get('async') === 'true'}`}
 					verifyTestMode={() =>
 						Promise.resolve(process.env.NODE_ENV === 'test')
 					}
@@ -48,23 +50,30 @@ function App() {
 }
 
 function Home() {
-	const [counter, setCounter] = useState(0)
+	const [counter, _setCounter] = useState(0)
+	function setCounter(v) {
+		if (params.get('async') === 'true') {
+			setTimeout(() => _setCounter(v), 500)
+		} else {
+			_setCounter(v)
+		}
+	}
 	return (
 		<React.Fragment>
 			<h1>Hello world</h1>
 			<p>This is a paragraph</p>
-			<p>Counter: {counter}</p>
+			<p data-test="counter-output">Counter: {counter}</p>
 			<button
 				data-test="btn-decrease"
 				type="button"
-				onClick={() => setCounter(counter - 1)}
+				onClick={() => setCounter((c) => c - 1)}
 			>
 				-
 			</button>
 			<button
 				data-test="btn-increase"
 				type="button"
-				onClick={() => setCounter(counter + 1)}
+				onClick={() => setCounter((c) => c + 1)}
 			>
 				+
 			</button>

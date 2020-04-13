@@ -1,5 +1,36 @@
 describe('<Counter /> with parcel', () => {
-	it('should stop using the stop button', () => {
+	it('should be able to stop working test', () => {
+		cy.contains('CyBuddy').should('not.exist')
+		cy.visit('http://localhost:1234/?testMode=true&async=true')
+		cy.contains('CyBuddy')
+		cy.contains('Create new test from login').click()
+		cy.contains('Run steps')
+
+		// Creating lots of steps, so the test takes time to finish
+		for (let i = 0; i < 10; i++) {
+			cy.simulateOverlayClick('[data-test="btn-increase"]')
+			cy.contains('Add step').click()
+
+			cy.simulateOverlayClick('[data-test="btn-increase"]')
+			cy.get('[data-test="input-selector"]')
+				.clear()
+				.type(`Counter: ${i + 1}`)
+			cy.get('[data-test="checkbox-use-selector"]').click()
+			cy.get('[data-test="input-action"]').select('exist')
+			cy.contains('Add step').click()
+		}
+
+		// Start the run, and force it to halt
+		cy.contains('Run steps').click()
+		cy.get('.alert-danger').should('not.exist')
+		cy.wait(500)
+		cy.contains('Stop').click()
+		cy.wait(1000)
+		cy.contains('Run steps').should('exist')
+		cy.contains('Counter: 10').should('not.exist')
+	})
+
+	it('should be able to stop broken test', () => {
 		cy.contains('CyBuddy').should('not.exist')
 		cy.visit('http://localhost:1234/?testMode=true')
 		cy.contains('CyBuddy')

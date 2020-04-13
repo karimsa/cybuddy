@@ -16,7 +16,7 @@ import { useLocalState, useAsync, useReducer, useAsyncAction } from './hooks'
 
 const iframeXHREvents = []
 
-const cyStub = {
+const cyStub = (window.cy = {
 	clearCookies() {
 		for (const key in Cookies.get()) {
 			Cookies.remove(key)
@@ -38,9 +38,25 @@ const cyStub = {
 		const iframe = $('iframe').get(0)
 		iframe.src = new URL(pathname, iframe.src).href
 	},
-}
+	reload() {
+		$('iframe').get(0).contentWindow.location.reload()
+	},
+})
 
 const defaultActions = [
+	{
+		action: 'reset',
+		label: 'resets the state',
+		params: [],
+		generateCode: () =>
+			[`cy.clearCookies()`, `cy.clearLocalStorage()`, `cy.reload()`].join('\n'),
+		runStep: () => {
+			/* globals cy */
+			cy.clearCookies()
+			cy.clearLocalStorage()
+			cy.reload()
+		},
+	},
 	{
 		action: 'type',
 		label: 'enter value into input',
@@ -890,6 +906,7 @@ function TestHelperChild({
 									>
 										<div className="form-group">
 											<RadioSwitch
+												data-test="checkbox-use-selector"
 												value={testStep.selectType === 'selector'}
 												onChange={(useSelector) =>
 													setTestStep({

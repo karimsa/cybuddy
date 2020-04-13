@@ -3,10 +3,16 @@ import PropTypes from 'prop-types'
 
 // RadioSwitch is an internal component in HireFast, just
 // replacing it temporarily with a checkbox
-export function RadioSwitch({ value, onChange, children }) {
+export function RadioSwitch({
+	value,
+	onChange,
+	'data-test': dataTest,
+	children,
+}) {
 	return (
 		<div className="form-check">
 			<input
+				data-test={dataTest}
 				className="form-check-input"
 				type="checkbox"
 				checked={value}
@@ -27,4 +33,5 @@ export function RadioSwitch({ value, onChange, children }) {
 RadioSwitch.propTypes = {
 	value: PropTypes.bool.isRequired,
 	onChange: PropTypes.func.isRequired,
+	'data-test': PropTypes.string,
 }
