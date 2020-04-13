@@ -1,3 +1,4 @@
 {
-	"trashAssetsBeforeRuns": true
+	"trashAssetsBeforeRuns": true,
+	"defaultCommandTimeout": 10000
 }

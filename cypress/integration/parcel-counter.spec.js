@@ -1,4 +1,31 @@
 describe('<Counter /> with parcel', () => {
+	it('should stop using the stop button', () => {
+		cy.contains('CyBuddy').should('not.exist')
+		cy.visit('http://localhost:1234/?testMode=true')
+		cy.contains('CyBuddy')
+		cy.contains('Create new empty test').click()
+		cy.contains('Run steps')
+
+		// Create a step for an element that doesn't exist
+		cy.simulateOverlayClick('[data-test="btn-increase"]')
+		cy.get('[data-test="input-selector"]')
+			.clear()
+			.type('[data-test="btn-not-exist"]')
+		cy.contains('Add step').click()
+
+		// Start the run, which should be fail
+		cy.contains('Run steps').click()
+		cy.get('.alert-danger').should('exist')
+
+		// Start the run, error should be removed
+		cy.contains('Run steps').click()
+		cy.get('.alert-danger').should('not.exist')
+		cy.wait(1000)
+		cy.contains('Stop').click()
+		cy.wait(1000)
+		cy.contains('Run steps').should('exist')
+	})
+
 	it('should generate tests with clicks', () => {
 		cy.visit('http://localhost:1234')
 		cy.contains('Counter: 0')

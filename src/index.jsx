@@ -69,9 +69,12 @@ const defaultActions = [
 		},
 		runStep: (testStep, iframe) => {
 			const elm = $(iframe).contents().find(createSelector(testStep)).get(0)
-			if (elm) {
-				elm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+			if (!elm) {
+				throw new Error(
+					`No element found matching selector: ${createSelector(testStep)}`,
+				)
 			}
+			elm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 		},
 	},
 	{
