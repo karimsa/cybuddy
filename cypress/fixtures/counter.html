@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Counter</title>
+</head>
+<body>
+	<p>Counter: 0</p>
+	<button type="button" data-test="btn-prev">-</button>
+	<button type="button" data-test="btn-next">+</button>
+
+	<script>
+		let counter = 0
+		const view = document.querySelector('p')
+
+		document.querySelector('[data-test="btn-prev"]').addEventListener('click', () => {
+			view.innerText = `Counter: ${--counter}`
+		})
+		document.querySelector('[data-test="btn-next"]').addEventListener('click', () => {
+			view.innerText = `Counter: ${++counter}`
+		})
+	</script>
+</body>
+</html>

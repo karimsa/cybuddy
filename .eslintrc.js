@@ -342,12 +342,11 @@ module.exports = {
 		}]
 	},
 	"env": {
-		"browser": true,
 		"es6": true,
 	},
 	"overrides": [
 		{
-			"files": ["cypress/**/*.js", "src/helpers.js"],
+			"files": ["web/cypress/**/*.js", "web/src/helpers.js"],
 			"env": {
 				"mocha": true,
 				"node": true,
@@ -358,7 +357,7 @@ module.exports = {
 			},
 		},
 		{
-			"files": ["src/**/__tests__/**/test-*.js"],
+			"files": ["web/src/**/__tests__/**/test-*.js"],
 			"env": {
 				"jest": true,
 				"node": true,
@@ -366,6 +365,18 @@ module.exports = {
 		},
 		{
 			"files": ["jest.config.js"],
+			"env": {
+				"node": true,
+			},
+		},
+		{
+			"files": ["web/src/**/*.js", "web/src/**/*.jsx"],
+			"env": {
+				"browser": true,
+			},
+		},
+		{
+			"files": ["src/**/*.js"],
 			"env": {
 				"node": true,
 			},

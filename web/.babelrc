@@ -1,6 +1,7 @@
 {
 	"plugins": [
-		"babel-plugin-emotion"
+		"babel-plugin-emotion",
+		"babel-plugin-transform-inline-environment-variables"
 	],
 	"presets": [
 		"@babel/preset-react",

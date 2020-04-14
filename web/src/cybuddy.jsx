@@ -1,5 +1,6 @@
 /** @jsx jsx */
 
+import 'bootstrap/dist/css/bootstrap.min.css'
 import 'babel-polyfill'
 import $ from 'jquery'
 import React, { useEffect, createRef } from 'react'
@@ -8,11 +9,10 @@ import { v4 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
 import PropTypes from 'prop-types'
 
-import './bootstrap'
 import { RadioSwitch } from './radio-switch'
 import { Alert } from './alert'
 import { Spinner } from './spinner'
-import { useLocalState, useAsync, useReducer, useAsyncAction } from './hooks'
+import { useLocalState, useReducer, useAsyncAction, useAPI } from './hooks'
 
 const iframeXHREvents = []
 
@@ -301,7 +301,6 @@ function noop() {
 }
 
 function TestHelperChild({
-	initialSteps,
 	baseURL,
 	defaultPathname,
 	isXHRAllowed,
@@ -317,7 +316,7 @@ function TestHelperChild({
 		new URL(defaultPathname, baseURL).href,
 	)
 	const [testFile, setTestFile] = useLocalState('test:file')
-	const [mode, setMode] = useLocalState('test:mode', 'pointer')
+	const [mode, setMode] = useLocalState('test:mode', 'navigation')
 	const [activeElm, setActiveElm] = useLocalState('test:activeElm')
 	const [testStep, setTestStep] = useLocalState('test:step')
 	const [openFileState, { fetch: openFile }] = useAsyncAction((file) => {
@@ -557,14 +556,16 @@ function TestHelperChild({
 								type="button"
 								className="btn btn-block btn-success"
 								onClick={() => {
+									// TODO: Replace this with templates
 									runStep({
 										action: 'reset',
 									})
+									setMode('pointer')
 									setTestFile({
 										name: 'untitled.spec.js',
 										description: 'should work',
 										checksErrorsAfterEveryStep: true,
-										steps: JSON.parse(JSON.stringify(initialSteps)),
+										steps: JSON.parse(JSON.stringify([])),
 									})
 								}}
 								disabled={openFile.status === 'inprogress'}
@@ -579,6 +580,7 @@ function TestHelperChild({
 									runStep({
 										action: 'reset',
 									})
+									setMode('pointer')
 									setTestFile({
 										name: 'untitled.spec.js',
 										description: 'should work',
@@ -819,6 +821,7 @@ function TestHelperChild({
 													}
 
 													setTestFile()
+													setMode('navigation')
 												}}
 											>
 												Save file
@@ -1430,36 +1433,37 @@ TestHelperChild.propTypes = {
 	actions: PropTypes.array.isRequired,
 }
 
-export default function CyBuddy(props) {
-	const testModeState = useAsync(props.verifyTestMode)
+export function CyBuddy() {
+	const { data, error } = useAPI('/api/init')
 
-	if (testModeState.status === 'inprogress') {
+	if (!data && !error) {
 		return (
 			<div className="h-100 w-100 d-flex align-items-center justify-content-center">
 				<Spinner size="lg" />
 			</div>
 		)
 	}
-	if (testModeState.error || !testModeState.result) {
+	if (error) {
 		return (
 			<div className="h-100 w-100 d-flex align-items-center justify-content-center">
 				<Alert type="danger">
 					{String(
-						!testModeState.result
+						String(error).includes('not running in test mode')
 							? 'The API is not running in test mode, which can cause real data to be written.'
-							: testModeState.error,
+							: error,
 					)}
 				</Alert>
 			</div>
 		)
 	}
 
-	const actions = defaultActions.concat(props.actions ?? [])
+	// TODO: Load custom actions from server
+	const actions = defaultActions.concat([] ?? [])
+	const target = new URL(data.targetUrl)
 	const childProps = {
-		...props,
-		onEnvReset: props.onEnvReset ?? noop,
-		isXHRAllowed: props.isXHRAllowed ?? (() => true),
-		defaultPathname: props.defaultPathname ?? '/',
+		isXHRAllowed: () => true,
+		baseURL: `http://${location.host}`,
+		defaultPathname: target.pathname,
 		actions,
 		generateCode: (testStep) => {
 			const action = actions.find((action) => action.action === testStep.action)
@@ -1482,13 +1486,4 @@ export default function CyBuddy(props) {
 	}
 
 	return <TestHelperChild {...childProps} />
-}
-CyBuddy.propTypes = {
-	verifyTestMode: PropTypes.func.isRequired,
-	baseURL: PropTypes.string.isRequired,
-
-	actions: PropTypes.array,
-	onEnvReset: PropTypes.func,
-	isXHRAllowed: PropTypes.func,
-	defaultPathname: PropTypes.string,
 }

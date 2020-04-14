@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import useSWR from 'swr'
+import axios from 'axios'
 
 const kPromise = Symbol('kPromise')
 
@@ -175,5 +177,12 @@ export function useAsyncAction(fn, deps) {
 export function useAsyncActions(handlers) {
 	return useAsyncAction(function (action, ...args) {
 		return handlers[action].apply(this, args)
+	})
+}
+
+export function useAPI(path) {
+	return useSWR(path, async () => {
+		const { data } = await axios.get(path)
+		return data
 	})
 }

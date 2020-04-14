@@ -4,3 +4,6 @@ node_modules
 dist
 cypress/videos
 cypress/screenshots
+
+.wiz
+*.dist.js
