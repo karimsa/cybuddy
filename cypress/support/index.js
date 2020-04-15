@@ -5,10 +5,13 @@ Cypress.Commands.add('simulateOverlayClick', (selector) => {
 		const iframeBounding = window.document
 			.querySelector('iframe')
 			.getBoundingClientRect()
-		const { left, top, height, width } = window.document
+		const selectedElm = window.document
 			.querySelector('iframe')
 			.contentWindow.document.querySelector(selector)
-			.getBoundingClientRect()
+		if (!selectedElm) {
+			throw new Error(`No element exists matching: ${selector}`)
+		}
+		const { left, top, height, width } = selectedElm.getBoundingClientRect()
 		const evt = new MouseEvent('click', {
 			clientX: left + width / 2 + iframeBounding.left,
 			clientY: top + height / 2,
