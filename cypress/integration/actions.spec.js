@@ -1,9 +1,33 @@
-describe('<Counter /> with parcel', () => {
-	it('should be able to stop working test', () => {
-		cy.contains('CyBuddy').should('not.exist')
-		cy.visit('http://localhost:1234/?testMode=true&async=true')
+describe('Actions', () => {
+	beforeEach(() => {
+		cy.visit('http://localhost:2468/cybuddy/')
+		cy.wait(1000)
+	})
+
+	it('should work without CyBuddy', () => {
+		cy.visit('http://localhost:2468/counter')
+		cy.contains('Counter: 0')
+		cy.get('[data-test="btn-increase"]').click()
+		cy.get('[data-test="btn-increase"]').click()
+		cy.get('[data-test="btn-increase"]').click()
+		cy.contains('Counter: 3')
+		cy.get('[data-test="btn-decrease"]').click()
+		cy.get('[data-test="btn-decrease"]').click()
+		cy.get('[data-test="btn-decrease"]').click()
+		cy.get('[data-test="btn-decrease"]').click()
+		cy.contains('Counter: -1')
+	})
+
+	it.only('should be able to stop working test', () => {
 		cy.contains('CyBuddy')
-		cy.contains('Create new test from login').click()
+		cy.contains('Create new empty test').click()
+		cy.simulateOverlayClick('[data-test="btn-increase"]')
+		cy.get('[data-test="input-action"]').select('reset')
+		cy.contains('Add step').click()
+
+		cy.get(':nth-child(4) > .card-body > .mt-2 > .btn-danger').click()
+		cy.contains('Delete step').click()
+
 		cy.contains('Run steps')
 
 		// Creating lots of steps, so the test takes time to finish
@@ -31,8 +55,6 @@ describe('<Counter /> with parcel', () => {
 	})
 
 	it('should be able to stop broken test', () => {
-		cy.contains('CyBuddy').should('not.exist')
-		cy.visit('http://localhost:1234/?testMode=true')
 		cy.contains('CyBuddy')
 		cy.contains('Create new empty test').click()
 		cy.contains('Run steps')
@@ -58,20 +80,6 @@ describe('<Counter /> with parcel', () => {
 	})
 
 	it('should generate tests with clicks', () => {
-		cy.visit('http://localhost:1234')
-		cy.contains('Counter: 0')
-		cy.get('[data-test="btn-increase"]').click()
-		cy.get('[data-test="btn-increase"]').click()
-		cy.get('[data-test="btn-increase"]').click()
-		cy.contains('Counter: 3')
-		cy.get('[data-test="btn-decrease"]').click()
-		cy.get('[data-test="btn-decrease"]').click()
-		cy.get('[data-test="btn-decrease"]').click()
-		cy.get('[data-test="btn-decrease"]').click()
-		cy.contains('Counter: -1')
-
-		cy.contains('CyBuddy').should('not.exist')
-		cy.visit('http://localhost:1234/?testMode=true')
 		cy.contains('CyBuddy')
 		cy.contains('Create new empty test').click()
 		cy.contains('Run steps')

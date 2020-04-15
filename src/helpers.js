@@ -1,3 +1,6 @@
+const Cypress = global.Cypress
+const cy = global.cy
+
 try {
 	const _ = Cypress.env
 } catch (error) {

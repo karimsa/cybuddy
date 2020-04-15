@@ -7,18 +7,22 @@
 </head>
 <body>
 	<p>Counter: 0</p>
-	<button type="button" data-test="btn-prev">-</button>
-	<button type="button" data-test="btn-next">+</button>
+	<button type="button" data-test="btn-decrease">-</button>
+	<button type="button" data-test="btn-increase">+</button>
 
 	<script>
 		let counter = 0
 		const view = document.querySelector('p')
 
-		document.querySelector('[data-test="btn-prev"]').addEventListener('click', () => {
-			view.innerText = `Counter: ${--counter}`
+		document.querySelector('[data-test="btn-decrease"]').addEventListener('click', () => {
+			setTimeout(() => {
+				view.innerText = `Counter: ${--counter}`
+			}, 100)
 		})
-		document.querySelector('[data-test="btn-next"]').addEventListener('click', () => {
-			view.innerText = `Counter: ${++counter}`
+		document.querySelector('[data-test="btn-increase"]').addEventListener('click', () => {
+			setTimeout(() => {
+				view.innerText = `Counter: ${++counter}`
+			}, 100)
 		})
 	</script>
 </body>

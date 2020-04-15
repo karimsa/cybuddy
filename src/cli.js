@@ -5,6 +5,7 @@ import open from 'open'
 import express from 'express'
 import proxy from 'express-http-proxy'
 import morgan from 'morgan'
+import frameguard from 'frameguard'
 
 const config = Object.assign(
 	{
@@ -37,6 +38,9 @@ const app = express()
 const apiRouter = express()
 
 apiRouter.use(morgan('dev'))
+apiRouter.get('/status', (_, res) => {
+	res.end(`I'm alive.`)
+})
 apiRouter.get('/init', async (_, res) => {
 	try {
 		if (!(await config.verifyTestMode())) {
@@ -61,6 +65,7 @@ app.use('/cybuddy', (req, res) => {
 		res.sendFile(path.resolve(__dirname, 'web', 'dist', 'index.html'))
 	}
 })
+app.use(frameguard({ action: 'SAMEORIGIN' }))
 app.use(proxy(config.targetUrl))
 
 const server = http.createServer(app)

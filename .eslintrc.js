@@ -346,9 +346,20 @@ module.exports = {
 	},
 	"overrides": [
 		{
-			"files": ["web/cypress/**/*.js", "web/src/helpers.js"],
+			"files": ["cypress/**/*.js"],
 			"env": {
 				"mocha": true,
+				"node": true,
+				"browser": true,
+			},
+			"globals": {
+				"cy": true,
+				"Cypress": true,
+			},
+		},
+		{
+			"files": ["cybuddy.config.js"],
+			"env": {
 				"node": true,
 			},
 			"globals": {
@@ -357,20 +368,7 @@ module.exports = {
 			},
 		},
 		{
-			"files": ["web/src/**/__tests__/**/test-*.js"],
-			"env": {
-				"jest": true,
-				"node": true,
-			},
-		},
-		{
-			"files": ["jest.config.js"],
-			"env": {
-				"node": true,
-			},
-		},
-		{
-			"files": ["web/src/**/*.js", "web/src/**/*.jsx"],
+			"files": ["web/src/**/*.jsx"],
 			"env": {
 				"browser": true,
 			},

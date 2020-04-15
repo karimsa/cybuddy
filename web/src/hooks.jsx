@@ -180,9 +180,16 @@ export function useAsyncActions(handlers) {
 	})
 }
 
-export function useAPI(path) {
-	return useSWR(path, async () => {
-		const { data } = await axios.get(path)
-		return data
-	})
+export function useAPI(path, options = {}) {
+	return useSWR(
+		path,
+		async () => {
+			const { data } = await axios.get(path)
+			return data
+		},
+		{
+			revalidateOnFocus: false,
+			...options,
+		},
+	)
 }

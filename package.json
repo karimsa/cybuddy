@@ -2,10 +2,14 @@
 	"name": "@karimsa/cybuddy",
 	"scripts": {
 		"start": "concurrently -k 'wiz build -w src/cli.js' 'cd web && npm start'",
-		"build": "wiz build",
-		"test": "wiz test",
-		"posttest": "start-server-and-test 'cd web && npm run build && node cli.dist.js' 2468"
+		"lint": "eslint .",
+		"build": "wiz build src/cli.js src/helpers.js",
+		"pretest": "npm run build && cd web && npm run build",
+		"test": "start-server-and-test 'node cli.dist.js' http://localhost:2468/api/status fixture:start",
+		"fixture:start": "start-server-and-test 'cd cypress/fixtures && ../../node_modules/.bin/serve' 5000 cy:run",
+		"cy:run": "cypress run"
 	},
+	"main": "helpers.dist.js",
 	"bin": {
 		"cybuddy": "cli.dist.js"
 	},
@@ -33,6 +37,7 @@
 	"dependencies": {
 		"express": "^4.17.1",
 		"express-http-proxy": "^1.6.0",
+		"frameguard": "^3.1.0",
 		"morgan": "^1.10.0",
 		"open": "^7.0.3",
 		"yargs": "^15.3.1"

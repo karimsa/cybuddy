@@ -1,3 +1,3 @@
 module.exports = {
-	targetUrl: 'http://localhost:5000',
+	targetUrl: 'http://localhost:5000/counter',
 }
