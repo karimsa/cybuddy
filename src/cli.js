@@ -5,7 +5,6 @@ import { promises as fs } from 'fs'
 import open from 'open'
 import express from 'express'
 import proxy from 'express-http-proxy'
-import frameguard from 'frameguard'
 
 function checkUrl(url) {
 	return new Promise((resolve, reject) => {
@@ -180,7 +179,10 @@ async function main() {
 			res.sendFile(path.resolve(__dirname, 'web', 'dist', 'index.html'))
 		}
 	})
-	app.use(frameguard({ action: 'SAMEORIGIN' }))
+	app.use((_, res, next) => {
+		res.set('X-Frame-Options', 'SAMEORIGIN')
+		next()
+	})
 	app.use(proxy(config.targetUrl))
 
 	const server = http.createServer(app)
