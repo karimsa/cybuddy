@@ -18,7 +18,9 @@ jobs:
         path: ~/.cache
         key: ${{ runner.os }}-home-${{ hashFiles('package-lock.json') }}
     - name: Install dependencies
-      run: npm install
+      run: |
+        npm install
+        cd web && npm install
     - name: Build
       run: |
         set -ex
