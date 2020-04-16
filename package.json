@@ -5,8 +5,8 @@
 		"lint": "eslint .",
 		"build": "wiz build src/cli.js src/helpers.js",
 		"pretest": "npm run build && cd web && npm run build",
-		"test": "start-server-and-test 'node cli.dist.js' http://localhost:2468/api/status fixture:start",
-		"fixture:start": "start-server-and-test 'cd cypress/fixtures && ../../node_modules/.bin/serve' 5000 cy:run",
+		"test": "start-server-and-test 'cd cypress/fixtures && ../../node_modules/.bin/serve' 5000 buddy:start",
+		"buddy:start": "start-server-and-test 'node cli.dist.js' http://localhost:2468/api/status cy:run",
 		"cy:run": "cypress run"
 	},
 	"main": "helpers.dist.js",
