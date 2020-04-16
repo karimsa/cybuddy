@@ -5,7 +5,6 @@ import { promises as fs } from 'fs'
 import open from 'open'
 import express from 'express'
 import proxy from 'express-http-proxy'
-import morgan from 'morgan'
 import frameguard from 'frameguard'
 
 function checkUrl(url) {
@@ -17,6 +16,31 @@ function checkUrl(url) {
 			})
 			.on('error', reject)
 	})
+}
+
+class APIError extends Error {
+	constructor(message, status = 500) {
+		super(message)
+		this.status = status
+	}
+}
+
+function route(fn) {
+	return async (req, res) => {
+		try {
+			const body = await fn(req, res)
+			if (typeof body === 'string') {
+				res.end(body)
+			} else {
+				res.json(body)
+			}
+		} catch (error) {
+			res.status(error.status || 500)
+			res.json({
+				error: String(error),
+			})
+		}
+	}
 }
 
 async function main() {
@@ -74,6 +98,34 @@ async function main() {
 	}
 
 	try {
+		const cypressJSON = JSON.parse(await fs.readFile('./cypress.json', 'utf8'))
+		cypressJSON.chromeWebSecurity = false
+		await fs.writeFile(
+			'./cypress.json',
+			JSON.stringify(cypressJSON, null, '\t'),
+		)
+	} catch (_) {
+		await fs.writeFile(
+			'./cypress.json',
+			JSON.stringify(
+				{
+					chromeWebSecurity: false,
+				},
+				null,
+				'\t',
+			),
+		)
+	}
+
+	try {
+		await fs.mkdir('./cypress/templates')
+	} catch (error) {
+		if (error.code !== 'EEXIST') {
+			throw error
+		}
+	}
+
+	try {
 		await checkUrl(config.targetUrl)
 	} catch (_) {
 		console.error(`Could not find server at: ${config.targetUrl}`)
@@ -84,26 +136,42 @@ async function main() {
 	const app = express()
 	const apiRouter = express()
 
-	apiRouter.use(morgan('dev'))
 	apiRouter.get('/status', (_, res) => {
 		res.end(`I'm alive.`)
 	})
-	apiRouter.get('/init', async (_, res) => {
-		try {
+	apiRouter.get(
+		'/init',
+		route(async () => {
 			if (!(await config.verifyTestMode())) {
-				res.status(403)
-				res.end(`Not running in test mode.`)
-				return
+				throw new APIError(`Not running in test mode`, 403)
 			}
 
-			res.json({
+			return {
 				targetUrl: config.targetUrl,
-			})
-		} catch (error) {
-			res.status(500)
-			res.end(String(error))
-		}
-	})
+			}
+		}),
+	)
+	apiRouter.get(
+		'/templates',
+		route(async () => {
+			return fs.readdir('./cypress/templates')
+		}),
+	)
+	apiRouter.get(
+		'/template/:templateName',
+		route(async (req, res) => {
+			res.set('Content-Type', 'application/json')
+			return fs.readFile(
+				`./cypress/templates/${req.params.templateName}`,
+				'utf8',
+			)
+		}),
+	)
+	apiRouter.use(
+		route((req) => {
+			throw new APIError(`API route does not exist: ${req.path}`, 404)
+		}),
+	)
 
 	app.use('/api', apiRouter)
 	app.use('/cybuddy', express.static(path.resolve(__dirname, 'web', 'dist')))

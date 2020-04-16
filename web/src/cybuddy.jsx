@@ -3,11 +3,13 @@
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'babel-polyfill'
 import $ from 'jquery'
+import 'bootstrap/dist/js/bootstrap.min.js'
 import React, { useEffect, createRef } from 'react'
 import { css, jsx } from '@emotion/core'
 import { v4 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
 import PropTypes from 'prop-types'
+import axios from 'axios'
 
 import { RadioSwitch } from './radio-switch'
 import { Alert } from './alert'
@@ -300,6 +302,71 @@ function noop() {
 	// NO-OP
 }
 
+function CreateFromTemplate({ onOpen, disabled }) {
+	const { data: templates, isValidating, error } = useAPI('/api/templates')
+	const [templateContentsState, { fetch: openTemplate }] = useAsyncAction(
+		async (template) => {
+			const { data } = await axios.get(`/api/template/${template}`)
+			return data
+		},
+	)
+	useEffect(() => {
+		if (templateContentsState.result) {
+			console.warn(templateContentsState.result)
+			onOpen(templateContentsState.result)
+		}
+	}, [templateContentsState.result])
+
+	return (
+		<React.Fragment>
+			<div className="dropdown btn-block mt-2">
+				<button
+					type="button"
+					className="btn btn-block btn-success dropdown-toggle"
+					disabled={disabled || isValidating}
+					data-toggle="dropdown"
+				>
+					<span>Create test from template</span>
+					{(isValidating || templateContentsState.status === 'inprogress') && (
+						<div className="ml-2">
+							<Spinner />
+						</div>
+					)}
+				</button>
+
+				<div className="dropdown-menu">
+					{templates &&
+						templates.map((template) => (
+							<a
+								key={template}
+								href="#"
+								className="dropdown-item"
+								onClick={(evt) => {
+									evt.preventDefault()
+									openTemplate(template)
+								}}
+							>
+								{template}
+							</a>
+						))}
+				</div>
+			</div>
+
+			{(error || templateContentsState.error) && (
+				<div className="mt-4">
+					<Alert type="danger">
+						{String(error || templateContentsState.error)}
+					</Alert>
+				</div>
+			)}
+		</React.Fragment>
+	)
+}
+CreateFromTemplate.propTypes = {
+	onOpen: PropTypes.func.isRequired,
+	disabled: PropTypes.bool,
+}
+
 function TestHelperChild({
 	baseURL,
 	defaultPathname,
@@ -554,27 +621,6 @@ function TestHelperChild({
 
 							<button
 								type="button"
-								className="btn btn-block btn-success"
-								onClick={() => {
-									// TODO: Replace this with templates
-									runStep({
-										action: 'reset',
-									})
-									setMode('pointer')
-									setTestFile({
-										name: 'untitled.spec.js',
-										description: 'should work',
-										checksErrorsAfterEveryStep: true,
-										steps: JSON.parse(JSON.stringify([])),
-									})
-								}}
-								disabled={openFile.status === 'inprogress'}
-							>
-								Create new test from login
-							</button>
-
-							<button
-								type="button"
 								className="btn btn-block btn-warning"
 								onClick={() => {
 									runStep({
@@ -592,6 +638,19 @@ function TestHelperChild({
 							>
 								Create new empty test
 							</button>
+
+							<CreateFromTemplate
+								disabled={openFile.status === 'inprogress'}
+								onOpen={({ steps }) => {
+									setMode('pointer')
+									setTestFile({
+										name: 'untitled.spec.js',
+										description: 'should work',
+										checksErrorsAfterEveryStep: true,
+										steps,
+									})
+								}}
+							/>
 						</div>
 					)}
 
