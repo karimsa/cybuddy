@@ -2,7 +2,7 @@
 	"main": "dist/index.js",
 	"scripts": {
 		"start": "parcel serve --public-url /cybuddy/ src/index.html",
-		"build": "parcel build src/index.html"
+		"build": "parcel build --public-url /cybuddy/ src/index.html"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.9.0",
