@@ -1,4 +1,4 @@
-const cyHelpers = require('../../dist/helpers')
+const cyHelpers = require('../../')
 
 Cypress.Commands.add('simulateOverlayClick', (selector) => {
 	cy.window().then((window) => {
