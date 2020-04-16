@@ -10,6 +10,7 @@ module.exports = {
 		"standard",
 		"prettier",
 		"node",
+		"no-only-tests",
 	],
 	"settings": {
 		"react": {
@@ -355,6 +356,9 @@ module.exports = {
 			"globals": {
 				"cy": true,
 				"Cypress": true,
+			},
+			"rules": {
+				"no-only-tests/no-only-tests": "error",
 			},
 		},
 		{
