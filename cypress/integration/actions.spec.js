@@ -51,7 +51,7 @@ describe('Actions', () => {
 		cy.contains('Stop').click()
 		cy.wait(1000)
 		cy.contains('Run steps').should('exist')
-		cy.contains('Counter: 10').should('not.exist')
+		cy.iframe().contains('Counter: 10').should('not.exist')
 	})
 
 	it('should be able to stop broken test', () => {
