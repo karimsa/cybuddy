@@ -18,7 +18,7 @@ describe('Actions', () => {
 		cy.contains('Counter: -1')
 	})
 
-	it.only('should be able to stop working test', () => {
+	it('should be able to stop working test', () => {
 		cy.contains('CyBuddy')
 		cy.contains('Create new empty test').click()
 		cy.simulateOverlayClick('[data-test="btn-increase"]')
