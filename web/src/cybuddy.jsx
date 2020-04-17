@@ -11,6 +11,7 @@ import PropTypes from 'prop-types'
 import axios from 'axios'
 import { trigger } from 'swr'
 
+import imgLogo from './logo.svg'
 import { RadioSwitch } from './radio-switch'
 import { Alert } from './alert'
 import { Spinner } from './spinner'
@@ -157,7 +158,12 @@ function Header({ isLoading, error }) {
 		<React.Fragment>
 			<h1 className="text-center mb-4 d-flex align-items-center justify-content-center">
 				{isLoading && <Spinner />}
-				<span className={isLoading ? 'ml-4' : ''}>CyBuddy</span>
+				<img
+					src={imgLogo}
+					width="80"
+					className={(isLoading ? 'ml-4' : '') + ' mr-2'}
+				/>
+				<span>CyBuddy</span>
 			</h1>
 			{error && (
 				<div className="mb-4">
