@@ -633,9 +633,10 @@ function TestHelperChild({
 															}
 														>
 															{shorten(
-																step.action === 'type'
-																	? step.args.typeContent
-																	: step.selector,
+																step.comment ??
+																	(step.action === 'type'
+																		? step.args.typeContent
+																		: step.selector),
 																16,
 															)}
 														</span>
@@ -923,6 +924,22 @@ function TestHelperChild({
 													</option>
 												))}
 											</select>
+										</div>
+
+										<div className="form-group">
+											<label className="col-form-lab">Comment</label>
+											<input
+												data-test="input-comment"
+												type="text"
+												className="form-control"
+												value={testStep.comment ?? testStep.selector}
+												onChange={(evt) => {
+													setTestStep({
+														...testStep,
+														comment: evt.target.value,
+													})
+												}}
+											/>
 										</div>
 
 										{testStepAction?.params &&
@@ -1237,7 +1254,12 @@ export function CyBuddy() {
 					`Unrecognized action specified by step: ${testStep.action}`,
 				)
 			}
-			return action.generateCode(testStep)
+			return [
+				testStep.comment && `// ${testStep.comment}`,
+				action.generateCode(testStep),
+			]
+				.filter(Boolean)
+				.join('\n')
 		},
 		execStep: (testStep) => {
 			const action = actions.find((action) => action.action === testStep.action)
