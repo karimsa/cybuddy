@@ -311,4 +311,22 @@ export const builtinActions = [
 			}
 		},
 	},
+	{
+		action: 'code',
+		label: 'custom code block',
+		params: [
+			{
+				key: 'codeBlock',
+				label: 'Custom code',
+				defaultValue: `console.log('hello, world')`,
+			},
+		],
+		generateCode(testStep) {
+			return testStep.args.codeBlock
+		},
+		runStep(testStep) {
+			// eslint-disable-next-line
+			eval(testStep.args.codeBlock)
+		},
+	},
 ]
