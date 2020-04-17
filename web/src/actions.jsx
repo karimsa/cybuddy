@@ -72,7 +72,10 @@ export const builtinActions = [
 		params: [],
 		generateCode: () =>
 			[`cy.clearCookies()`, `cy.clearLocalStorage()`, `cy.reload()`].join('\n'),
-		runStep: () => resetEnvironment($('iframe').get(0)),
+		runStep(_, iframe) {
+			resetEnvironment($('iframe').get(0))
+			iframe.contentWindow.location.reload()
+		},
 	},
 	{
 		action: 'type',
