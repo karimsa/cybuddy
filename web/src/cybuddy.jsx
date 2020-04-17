@@ -4,7 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'babel-polyfill'
 import $ from 'jquery'
 import 'bootstrap/dist/js/bootstrap.min.js'
-import React, { useEffect, createRef } from 'react'
+import React, { useEffect, createRef, useState } from 'react'
 import { css, jsx } from '@emotion/core'
 import { v4 as uuid } from 'uuid'
 import PropTypes from 'prop-types'
@@ -153,7 +153,7 @@ CreateFromTemplate.propTypes = {
 	disabled: PropTypes.bool,
 }
 
-function Header({ isLoading, error }) {
+function Header({ isLoading }) {
 	return (
 		<React.Fragment>
 			<h1 className="text-center mb-4 d-flex align-items-center justify-content-center">
@@ -165,17 +165,11 @@ function Header({ isLoading, error }) {
 				/>
 				<span>CyBuddy</span>
 			</h1>
-			{error && (
-				<div className="mb-4">
-					<Alert type="danger">{String(error).split('\n')[0]}</Alert>
-				</div>
-			)}
 		</React.Fragment>
 	)
 }
 Header.propTypes = {
 	isLoading: PropTypes.bool.isRequired,
-	error: PropTypes.any,
 }
 
 function TestHelperChild({
@@ -309,14 +303,16 @@ function TestHelperChild({
 		},
 	})
 
-	const runStep = async (step) => {
-		try {
-			await execStep(step, iframeRef.current)
+	const [runState, { fetch: runStep }] = useAsyncAction(async (step) => {
+		return execStep(step, iframeRef.current)
+	})
+	useEffect(() => {
+		if (runState.error) {
+			dispatch({ type: 'setError', error: runState.error })
+		} else {
 			dispatch({ type: 'stop' })
-		} catch (error) {
-			dispatch({ type: 'setError', error })
 		}
-	}
+	}, [runState.status])
 
 	useEffect(() => {
 		function injectXHR(evt) {
@@ -352,10 +348,11 @@ function TestHelperChild({
 		}
 
 		if (iframeRef.current) {
-			injectXHR({ target: iframeRef.current })
-			iframeRef.current.addEventListener('load', injectXHR)
+			const iframe = iframeRef.current
+			injectXHR({ target: iframe })
+			iframe.addEventListener('load', injectXHR)
 			return () => {
-				iframeRef.current.removeEventListener('load', injectXHR)
+				iframe.removeEventListener('load', injectXHR)
 			}
 		}
 	}, [iframeRef.current])
@@ -418,10 +415,25 @@ function TestHelperChild({
 		testStep && testFile.steps.find((step) => step.id === testStep.id)
 	const isLoading =
 		saveTemplateState.status === 'inprogress' ||
-		openFile.status === 'inprogress'
-	const error = openFile.error || saveTemplateState.error
+		openFile.status === 'inprogress' ||
+		runState.status === 'inprogress'
 	const testStepAction =
 		testStep && actions.find((action) => action.action === testStep.action)
+
+	const [error, setError] = useState()
+	useEffect(() => {
+		setError(
+			openFile.error ||
+				saveTemplateState.error ||
+				runState.error ||
+				runningState?.error,
+		)
+	}, [
+		openFile.error ||
+			saveTemplateState.error ||
+			runState.error ||
+			runningState?.error,
+	])
 
 	function saveTestFile() {
 		const objectURL = URL.createObjectURL(
@@ -708,9 +720,14 @@ function TestHelperChild({
 											left: 0;
 										`}
 									>
-										{runningState?.error && (
-											<Alert type="danger" dismissable={true} className="mb-4">
-												{String(runningState.error)}
+										{error && (
+											<Alert
+												type="danger"
+												dismissable={true}
+												className="mb-4"
+												onDismiss={setError}
+											>
+												{String(error).split('\n')[0]}
 											</Alert>
 										)}
 
@@ -1258,14 +1275,14 @@ export function CyBuddy() {
 				.filter(Boolean)
 				.join('\n')
 		},
-		execStep: (testStep) => {
+		execStep: (testStep, iframe) => {
 			const action = actions.find((action) => action.action === testStep.action)
 			if (!action) {
 				throw new Error(
 					`Unrecognized action specified by step: ${testStep.action}`,
 				)
 			}
-			return action.runStep(testStep, $('iframe').get(0))
+			return action.runStep(testStep, iframe)
 		},
 	}
 
