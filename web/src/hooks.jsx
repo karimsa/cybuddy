@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react'
 import useSWR from 'swr'
 import axios from 'axios'
 
+axios.interceptors.response.use(
+	(res) => res,
+	(error) => {
+		if (error.response?.data?.error) {
+			throw error.response.data.error
+		}
+
+		return Promise.reject(error)
+	},
+)
+
 const kPromise = Symbol('kPromise')
 
 export function useLocalState(name, defaultValue) {

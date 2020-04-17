@@ -1,7 +1,7 @@
 {
 	"name": "@karimsa/cybuddy",
 	"scripts": {
-		"start": "concurrently -k 'wiz build -w src/cli.js' 'cd web && npm start'",
+		"start": "concurrently -k 'cd cypress/fixtures && ../../node_modules/.bin/serve' 'wiz build -w src/cli.js' 'cd web && npm start'",
 		"lint": "eslint .",
 		"build": "wiz build src/cli.js src/helpers.js",
 		"pretest": "npm run build && cd web && npm run build",
@@ -31,6 +31,7 @@
 		"eslint-plugin-react": "^7.19.0",
 		"eslint-plugin-react-hooks": "^3.0.0",
 		"eslint-plugin-standard": "^4.0.1",
+		"nodemon": "^2.0.3",
 		"prettier": "^2.0.4",
 		"serve": "^11.3.0",
 		"start-server-and-test": "^1.10.11"

@@ -10,6 +10,7 @@ import { v4 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
 import PropTypes from 'prop-types'
 import axios from 'axios'
+import { trigger } from 'swr'
 
 import { RadioSwitch } from './radio-switch'
 import { Alert } from './alert'
@@ -64,8 +65,9 @@ const defaultActions = [
 		label: 'enter value into input',
 		params: [
 			{
-				key: 'value',
+				key: 'typeContent',
 				type: 'string',
+				label: 'Type Content',
 			},
 		],
 		generateCode: (testStep) =>
@@ -317,21 +319,23 @@ function CreateFromTemplate({ onOpen, disabled }) {
 		}
 	}, [templateContentsState.result])
 
+	if (templates?.length === 0) {
+		return null
+	}
+
 	return (
 		<React.Fragment>
 			<div className="dropdown btn-block mt-2">
 				<button
 					type="button"
-					className="btn btn-block btn-success dropdown-toggle"
+					className="btn btn-block btn-success dropdown-toggle d-flex align-items-center justify-content-center"
 					disabled={disabled || isValidating}
 					data-toggle="dropdown"
 				>
-					<span>Create test from template</span>
 					{(isValidating || templateContentsState.status === 'inprogress') && (
-						<div className="ml-2">
-							<Spinner />
-						</div>
+						<Spinner color="light" />
 					)}
+					<span className="ml-2">Create test from template</span>
 				</button>
 
 				<div className="dropdown-menu">
@@ -365,6 +369,26 @@ function CreateFromTemplate({ onOpen, disabled }) {
 CreateFromTemplate.propTypes = {
 	onOpen: PropTypes.func.isRequired,
 	disabled: PropTypes.bool,
+}
+
+function Header({ isLoading, error }) {
+	return (
+		<React.Fragment>
+			<h1 className="text-center mb-4 d-flex align-items-center justify-content-center">
+				{isLoading && <Spinner />}
+				<span className={isLoading ? 'ml-4' : ''}>CyBuddy</span>
+			</h1>
+			{error && (
+				<div className="mb-4">
+					<Alert type="danger">{String(error).split('\n')[0]}</Alert>
+				</div>
+			)}
+		</React.Fragment>
+	)
+}
+Header.propTypes = {
+	isLoading: PropTypes.bool.isRequired,
+	error: PropTypes.any,
 }
 
 function TestHelperChild({
@@ -408,6 +432,19 @@ function TestHelperChild({
 			fileReader.readAsText(file, 'UTF-8')
 		})
 	})
+	const [saveTemplateState, { fetch: saveTemplate }] = useAsyncAction(
+		(testFile) => {
+			return axios.post('/api/templates', testFile)
+		},
+	)
+
+	useEffect(() => {
+		if (saveTemplateState.status === 'success') {
+			trigger('/api/templates')
+			setTestFile()
+			setMode('navigation')
+		}
+	}, [saveTemplateState])
 
 	const [runningState, dispatch] = useReducer({
 		start() {
@@ -576,6 +613,10 @@ function TestHelperChild({
 
 	const testStepIsSaved =
 		testStep && testFile.steps.find((step) => step.id === testStep.id)
+	const isLoading =
+		saveTemplateState.status === 'inprogress' ||
+		openFile.status === 'inprogress'
+	const error = openFile.error || saveTemplateState.error
 
 	return (
 		<div
@@ -594,12 +635,7 @@ function TestHelperChild({
 				>
 					{!testFile && (
 						<div className="d-flex align-items-center justify-content-center flex-column h-100">
-							<h1 className="text-center mb-4">CyBuddy</h1>
-
-							{openFile.error && (
-								<Alert type="danger">{String(openFile.error)}</Alert>
-							)}
-							{openFile.status === 'inprogress' && <Spinner />}
+							<Header isLoading={isLoading} error={error} />
 
 							<input
 								type="file"
@@ -614,7 +650,7 @@ function TestHelperChild({
 								type="button"
 								className="btn btn-block btn-primary"
 								onClick={() => openFileRef.current.click()}
-								disabled={openFile.status === 'inprogress'}
+								disabled={isLoading}
 							>
 								Open test
 							</button>
@@ -634,13 +670,13 @@ function TestHelperChild({
 										steps: [],
 									})
 								}}
-								disabled={openFile.status === 'inprogress'}
+								disabled={isLoading}
 							>
 								Create new empty test
 							</button>
 
 							<CreateFromTemplate
-								disabled={openFile.status === 'inprogress'}
+								disabled={isLoading}
 								onOpen={({ steps }) => {
 									setMode('pointer')
 									setTestFile({
@@ -664,7 +700,7 @@ function TestHelperChild({
 
 					{testFile && (
 						<React.Fragment>
-							<h1 className="text-center mb-4">CyBuddy</h1>
+							<Header isLoading={isLoading} error={error} />
 
 							<RadioSwitch
 								value={mode === 'navigation'}
@@ -823,6 +859,7 @@ function TestHelperChild({
 
 										<div className="d-flex justify-content-between">
 											<button
+												disabled={isLoading}
 												type="button"
 												className="btn btn-primary"
 												onClick={() => {
@@ -885,8 +922,17 @@ function TestHelperChild({
 											>
 												Save file
 											</button>
+											<button
+												disabled={isLoading}
+												type="button"
+												className="btn btn-info"
+												onClick={() => saveTemplate(testFile)}
+											>
+												Save as template
+											</button>
 											{!runningState?.running && (
 												<button
+													disabled={isLoading}
 													type="button"
 													className="btn btn-success"
 													onClick={() => dispatch({ type: 'start' })}
@@ -896,6 +942,7 @@ function TestHelperChild({
 											)}
 											{runningState?.running && (
 												<button
+													disabled={isLoading}
 													type="button"
 													className="btn btn-danger"
 													onClick={() => dispatch({ type: 'stop' })}
@@ -1098,26 +1145,6 @@ function TestHelperChild({
 											</React.Fragment>
 										)}
 
-										{testStep.action === 'type' && (
-											<div className="form-group">
-												<label className="col-form-label">Type content</label>
-												<input
-													type="text"
-													className="form-control"
-													value={testStep.args.typeContent ?? ''}
-													onChange={(evt) => {
-														setTestStep({
-															...testStep,
-															args: {
-																...testStep.args,
-																typeContent: evt.target.value,
-															},
-														})
-													}}
-												/>
-											</div>
-										)}
-
 										{testStep.action === 'xhr' && (
 											<React.Fragment>
 												<div className="form-group">
@@ -1219,7 +1246,7 @@ function TestHelperChild({
 													return (
 														<div className="form-group" key={param.key}>
 															<label className="col-form-label">
-																{param.key}
+																{param.label ?? param.key}
 															</label>
 															<input
 																type={param.type}

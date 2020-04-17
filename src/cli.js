@@ -4,6 +4,7 @@ import { promises as fs } from 'fs'
 
 import open from 'open'
 import express from 'express'
+import bodyParser from 'body-parser'
 import proxy from 'express-http-proxy'
 
 function checkUrl(url) {
@@ -36,7 +37,7 @@ function route(fn) {
 		} catch (error) {
 			res.status(error.status || 500)
 			res.json({
-				error: String(error),
+				error: String(error.stack || error),
 			})
 		}
 	}
@@ -135,6 +136,7 @@ async function main() {
 	const app = express()
 	const apiRouter = express()
 
+	apiRouter.use(bodyParser.json())
 	apiRouter.get('/status', (_, res) => {
 		res.end(`I'm alive.`)
 	})
@@ -154,6 +156,42 @@ async function main() {
 		'/templates',
 		route(async () => {
 			return fs.readdir('./cypress/templates')
+		}),
+	)
+	apiRouter.post(
+		'/templates',
+		route(async (req) => {
+			let filename = req.body.name
+			if (!filename) {
+				throw new Error(`Filename is required`)
+			}
+			filename =
+				filename.substr(0, filename.length - '.spec.js'.length) + '.json'
+
+			try {
+				await fs.writeFile(
+					`./cypress/templates/${filename}`,
+					JSON.stringify(
+						{
+							steps: req.body.steps,
+						},
+						null,
+						'\t',
+					),
+					{
+						flag: 'wx',
+					},
+				)
+			} catch (error) {
+				if (error.code === 'EEXIST') {
+					throw new Error(`Template named '${filename}' already exists`)
+				}
+				throw error
+			}
+
+			return {
+				name: filename,
+			}
 		}),
 	)
 	apiRouter.get(
