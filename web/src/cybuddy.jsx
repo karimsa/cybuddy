@@ -50,6 +50,7 @@ const defaultActions = [
 	{
 		action: 'reset',
 		label: 'resets the state',
+		hideSelectorInput: true,
 		params: [],
 		generateCode: () =>
 			[`cy.clearCookies()`, `cy.clearLocalStorage()`, `cy.reload()`].join('\n'),
@@ -100,6 +101,29 @@ const defaultActions = [
 	{
 		action: 'location',
 		label: 'verify page location',
+		params: [
+			{
+				key: 'locationProperty',
+				label: 'Location property',
+				type: 'select',
+				options: ['pathname', 'href'],
+			},
+			{
+				label: 'Match type',
+				key: 'locationMatchType',
+				type: 'select',
+				options: [
+					{
+						key: 'startsWith',
+						label: 'starts with',
+					},
+					{
+						key: 'exact',
+						label: 'is exactly',
+					},
+				],
+			},
+		],
 		generateCode: (testStep) => {
 			if (testStep.args.locationMatchType === 'startsWith') {
 				return `cy.location('${testStep.args.locationProperty}').should('match', new RegExp('^${testStep.selector}'))`
@@ -166,6 +190,13 @@ const defaultActions = [
 	{
 		action: 'select',
 		label: 'select value from dropdown',
+		params: [
+			{
+				key: 'typeContent',
+				type: 'string',
+				label: 'Type Content',
+			},
+		],
 		generateCode: (testStep) =>
 			`cy.get('${testStep.selector}').select('${testStep.args.typeContent}')`,
 		runStep: (testStep, iframe) =>
@@ -177,6 +208,7 @@ const defaultActions = [
 	{
 		action: 'reload',
 		label: 'refresh the page',
+		hideSelectorInput: true,
 		generateCode: () => `cy.reload()`,
 		runStep: (_, iframe) => {
 			iframe.contentWindow.location.reload()
@@ -185,6 +217,20 @@ const defaultActions = [
 	{
 		action: 'xhr',
 		label: 'wait for request',
+		params: [
+			{
+				key: 'xhrMethod',
+				label: 'Method',
+				type: 'select',
+				options: ['DELETE', 'GET', 'PATCH', 'POST', 'PUT'],
+			},
+			{
+				key: 'xhrProperty',
+				label: 'Request property',
+				type: 'select',
+				options: ['href', 'pathname'],
+			},
+		],
 		generateCode: (testStep) =>
 			[
 				`helpers.waitForXHR({`,
@@ -302,6 +348,63 @@ function shorten(text, maxlen) {
 
 function noop() {
 	// NO-OP
+}
+
+function ActionParamInput({ param, testStep, setTestStep }) {
+	function onChange(evt) {
+		setTestStep({
+			...testStep,
+			args: {
+				...testStep.args,
+				[param.key]: evt.target.value,
+			},
+		})
+	}
+
+	return (
+		<div className="form-group">
+			<label className="col-form-label">{param.label ?? param.key}</label>
+			{param.type === 'select' ? (
+				<select
+					className="form-control"
+					value={testStep.args[param.key] ?? param.defaultValue}
+					onChange={onChange}
+				>
+					{param.options.map((option) => (
+						<option key={option?.key ?? option} value={option?.key ?? option}>
+							{option?.label ?? option?.key ?? option}
+						</option>
+					))}
+				</select>
+			) : (
+				<input
+					type={param.type}
+					className="form-control"
+					value={testStep.args[param.key] ?? param.defaultValue}
+					onChange={onChange}
+				/>
+			)}
+		</div>
+	)
+}
+ActionParamInput.propTypes = {
+	param: PropTypes.shape({
+		type: PropTypes.string.isRequired,
+		key: PropTypes.string.isRequired,
+		label: PropTypes.string.isRequired,
+		defaultValue: PropTypes.string,
+		options: PropTypes.arrayOf(
+			PropTypes.oneOfType([
+				PropTypes.string.isRequired,
+				PropTypes.shape({
+					key: PropTypes.string.isRequired,
+					label: PropTypes.string.isRequired,
+				}).isRequired,
+			]),
+		),
+	}).isRequired,
+	testStep: PropTypes.object.isRequired,
+	setTestStep: PropTypes.func.isRequired,
 }
 
 function CreateFromTemplate({ onOpen, disabled }) {
@@ -611,12 +714,81 @@ function TestHelperChild({
 		}
 	}, [testStep?.selectType, testStep?.selector])
 
+	// Special case for 'select' action: populate the dropdown magically
+	useEffect(() => {
+		if (testStep?.action === 'select') {
+			const selectAction = actions.find((action) => action.action === 'select')
+			selectAction.params[0].options = $('iframe')
+				.contents()
+				.find(createSelector(testStep))
+				.find('option')
+				.toArray()
+				.map((option) => ({
+					key: option.value,
+					label: option.innerText,
+				}))
+		}
+	}, [testStep?.action === 'select'])
+
 	const testStepIsSaved =
 		testStep && testFile.steps.find((step) => step.id === testStep.id)
 	const isLoading =
 		saveTemplateState.status === 'inprogress' ||
 		openFile.status === 'inprogress'
 	const error = openFile.error || saveTemplateState.error
+	const testStepAction =
+		testStep && actions.find((action) => action.action === testStep.action)
+
+	function saveTestFile() {
+		const objectURL = URL.createObjectURL(
+			new Blob(
+				[
+					[
+						`/* eslint-disable */`,
+						`const helpers = require('@karimsa/cybuddy/helpers')`,
+						``,
+						`describe('${testFile.name}', () => {`,
+						`\tit('${testFile.description}', () => {`,
+						`\t\tCypress.config('baseUrl', '${baseURL}')`,
+						`\t\tcy.visit('${defaultPathname}')`,
+						testFile.steps
+							.map((step, index) => {
+								const stepCode = generateCode(step)
+									.split('\n')
+									.map((l) => '\t\t' + l)
+									.join('\n')
+								if (testFile.checksErrorsAfterEveryStep && index > 0) {
+									return (
+										stepCode +
+										`\n\t\tcy.get('.alert-danger').should('not.exist')`
+									)
+								}
+								return stepCode
+							})
+							.filter((s) => s.trim())
+							.join('\n\n'),
+						`\t})`,
+						`})`,
+						``,
+						`module.exports = ${JSON.stringify(testFile, null, '\t')}`,
+						``,
+					].join('\n'),
+				],
+				{ type: 'text/plain' },
+			),
+		)
+
+		$(downloadFileRef.current)
+			.attr('download', testFile.name)
+			.attr('href', objectURL)
+
+		if (!window.Cypress) {
+			downloadFileRef.current.click()
+		}
+
+		setTestFile()
+		setMode('navigation')
+	}
 
 	return (
 		<div
@@ -858,78 +1030,51 @@ function TestHelperChild({
 										)}
 
 										<div className="d-flex justify-content-between">
-											<button
-												disabled={isLoading}
-												type="button"
-												className="btn btn-primary"
-												onClick={() => {
-													const objectURL = URL.createObjectURL(
-														new Blob(
-															[
-																[
-																	`/* eslint-disable */`,
-																	`const helpers = require('@karimsa/cybuddy/helpers')`,
-																	``,
-																	`describe('${testFile.name}', () => {`,
-																	`\tit('${testFile.description}', () => {`,
-																	`\t\tCypress.config('baseUrl', '${baseURL}')`,
-																	`\t\tcy.visit('${defaultPathname}')`,
-																	testFile.steps
-																		.map((step, index) => {
-																			const stepCode = generateCode(step)
-																				.split('\n')
-																				.map((l) => '\t\t' + l)
-																				.join('\n')
-																			if (
-																				testFile.checksErrorsAfterEveryStep &&
-																				index > 0
-																			) {
-																				return (
-																					stepCode +
-																					`\n\t\tcy.get('.alert-danger').should('not.exist')`
-																				)
-																			}
-																			return stepCode
-																		})
-																		.filter((s) => s.trim())
-																		.join('\n\n'),
-																	`\t})`,
-																	`})`,
-																	``,
-																	`module.exports = ${JSON.stringify(
-																		testFile,
-																		null,
-																		'\t',
-																	)}`,
-																	``,
-																].join('\n'),
-															],
-															{ type: 'text/plain' },
-														),
-													)
+											<div className="dropdown">
+												<button
+													type="button"
+													className="btn btn-primary dropdown-toggle d-flex align-items-center justify-content-center"
+													disabled={isLoading}
+													data-toggle="dropdown"
+												>
+													{saveTemplateState.status === 'inprogress' && (
+														<Spinner color="light" />
+													)}
+													<span
+														className={
+															saveTemplateState.status === 'inprogress'
+																? 'ml-2'
+																: ''
+														}
+													>
+														Save file
+													</span>
+												</button>
 
-													$(downloadFileRef.current)
-														.attr('download', testFile.name)
-														.attr('href', objectURL)
+												<div className="dropdown-menu">
+													<a
+														href="#"
+														className="dropdown-item"
+														onClick={(evt) => {
+															evt.preventDefault()
+															saveTestFile()
+														}}
+													>
+														as test file
+													</a>
+													<a
+														href="#"
+														className="dropdown-item"
+														onClick={(evt) => {
+															evt.preventDefault()
+															saveTemplate()
+														}}
+													>
+														as template
+													</a>
+												</div>
+											</div>
 
-													if (!window.Cypress) {
-														downloadFileRef.current.click()
-													}
-
-													setTestFile()
-													setMode('navigation')
-												}}
-											>
-												Save file
-											</button>
-											<button
-												disabled={isLoading}
-												type="button"
-												className="btn btn-info"
-												onClick={() => saveTemplate(testFile)}
-											>
-												Save as template
-											</button>
 											{!runningState?.running && (
 												<button
 													disabled={isLoading}
@@ -1028,247 +1173,97 @@ function TestHelperChild({
 											</RadioSwitch>
 										</div>
 
-										{testStep.action !== 'reload' &&
-											testStep.action !== 'reset' && (
-												<React.Fragment>
-													{(function () {
-														try {
-															return (
-																$('iframe')
-																	.contents()
-																	.find(createSelector(testStep)).length >
-																	1 && (
-																	<Alert type="warning">
-																		<strong>Warning:</strong> Your selector is
-																		currently matching{' '}
-																		{
-																			$('iframe')
-																				.contents()
-																				.find(createSelector(testStep)).length
-																		}{' '}
-																		elements.
-																	</Alert>
-																)
+										{!testStepAction?.hideSelectorInput && (
+											<React.Fragment>
+												{(function () {
+													try {
+														return (
+															$('iframe')
+																.contents()
+																.find(createSelector(testStep)).length > 1 && (
+																<Alert type="warning">
+																	<strong>Warning:</strong> Your selector is
+																	currently matching{' '}
+																	{
+																		$('iframe')
+																			.contents()
+																			.find(createSelector(testStep)).length
+																	}{' '}
+																	elements.
+																</Alert>
 															)
-														} catch {
-															return null
-														}
-													})()}
-
-													<div className="form-group">
-														<label className="col-form-label">
-															{testStep.selectType === 'selector'
-																? 'Selector'
-																: 'Content'}
-														</label>
-														<input
-															data-test="input-selector"
-															type="text"
-															className="form-control"
-															value={testStep.selector}
-															onChange={(evt) => {
-																setTestStep({
-																	...testStep,
-																	selector: evt.target.value,
-																})
-															}}
-														/>
-													</div>
-												</React.Fragment>
-											)}
-
-										{testStep.action !== 'location' && (
-											<div className="form-group">
-												<label className="col-form-label">Action</label>
-												<select
-													data-test="input-action"
-													className="form-control"
-													value={testStep.action}
-													onChange={(evt) => {
-														setTestStep({
-															...testStep,
-															action: evt.target.value,
-														})
-													}}
-												>
-													{actions.map((action) => (
-														<option value={action.action} key={action.action}>
-															{action.label}
-														</option>
-													))}
-												</select>
-											</div>
-										)}
-
-										{testStep.action === 'location' && (
-											<React.Fragment>
-												<div className="form-group">
-													<label className="col-form-label">
-														Location property
-													</label>
-													<select
-														className="form-control"
-														value={testStep.args.locationProperty}
-														onChange={(evt) => {
-															setTestStep({
-																...testStep,
-																args: {
-																	...testStep.args,
-																	locationProperty: evt.target.value,
-																},
-															})
-														}}
-													>
-														<option value="pathname">pathname</option>
-														<option value="href">href</option>
-													</select>
-												</div>
-												<div className="form-group">
-													<label className="col-form-label">Match type</label>
-													<select
-														className="form-control"
-														value={testStep.args.locationMatchType}
-														onChange={(evt) => {
-															setTestStep({
-																...testStep,
-																args: {
-																	...testStep.args,
-																	locationMatchType: evt.target.value,
-																},
-															})
-														}}
-													>
-														<option value="startsWith">starts with</option>
-														<option value="exact">is exactly</option>
-													</select>
-												</div>
-											</React.Fragment>
-										)}
-
-										{testStep.action === 'xhr' && (
-											<React.Fragment>
-												<div className="form-group">
-													<label className="col-form-label">
-														Request property
-													</label>
-													<select
-														className="form-control"
-														value={testStep.args.xhrProperty}
-														onChange={(evt) => {
-															setTestStep({
-																...testStep,
-																args: {
-																	...testStep.args,
-																	xhrProperty: evt.target.value,
-																},
-															})
-														}}
-													>
-														<option value="href">href</option>
-														<option value="pathname">pathname</option>
-													</select>
-												</div>
-												<div className="form-group">
-													<label className="col-form-label">
-														Request method
-													</label>
-													<select
-														className="form-control"
-														value={testStep.args.xhrMethod}
-														onChange={(evt) => {
-															setTestStep({
-																...testStep,
-																args: {
-																	...testStep.args,
-																	xhrMethod: evt.target.value,
-																},
-															})
-														}}
-													>
-														<option value="GET">GET</option>
-														<option value="POST">POST</option>
-														<option value="PUT">PUT</option>
-														<option value="DELETE">DELETE</option>
-													</select>
-												</div>
-											</React.Fragment>
-										)}
-
-										{testStep.action === 'select' && (
-											<div className="form-group">
-												<label className="col-form-label">Type content</label>
-												<select
-													className="form-control"
-													value={testStep.args.typeContent ?? ''}
-													onChange={(evt) => {
-														setTestStep({
-															...testStep,
-															args: {
-																...testStep.args,
-																typeContent: evt.target.value,
-															},
-														})
-													}}
-												>
-													{$('iframe')
-														.contents()
-														.find(createSelector(testStep))
-														.find('option')
-														.toArray()
-														.map((option) => (
-															<option value={option.value} key={option.value}>
-																{option.innerHTML}
-															</option>
-														))}
-												</select>
-											</div>
-										)}
-
-										{(function () {
-											const action = actions.find(
-												(action) => action.action === testStep.action,
-											)
-											return (
-												action.params &&
-												action.params.map((param) => {
-													if (
-														param.defaultValue != null &&
-														testStep.args[param.key] == null
-													) {
-														setTestStep({
-															...testStep,
-															args: {
-																...testStep.args,
-																[param.key]: param.defaultValue,
-															},
-														})
+														)
+													} catch {
+														return null
 													}
-													return (
-														<div className="form-group" key={param.key}>
-															<label className="col-form-label">
-																{param.label ?? param.key}
-															</label>
-															<input
-																type={param.type}
-																className="form-control"
-																value={
-																	testStep.args[param.key] ?? param.defaultValue
-																}
-																onChange={(evt) => {
-																	setTestStep({
-																		...testStep,
-																		args: {
-																			...testStep.args,
-																			[param.key]: evt.target.value,
-																		},
-																	})
-																}}
-															/>
-														</div>
-													)
-												})
-											)
-										})()}
+												})()}
+
+												<div className="form-group">
+													<label className="col-form-label">
+														{testStep.selectType === 'selector'
+															? 'Selector'
+															: 'Content'}
+													</label>
+													<input
+														data-test="input-selector"
+														type="text"
+														className="form-control"
+														value={testStep.selector}
+														onChange={(evt) => {
+															setTestStep({
+																...testStep,
+																selector: evt.target.value,
+															})
+														}}
+													/>
+												</div>
+											</React.Fragment>
+										)}
+
+										<div className="form-group">
+											<label className="col-form-label">Action</label>
+											<select
+												data-test="input-action"
+												className="form-control"
+												value={testStep.action}
+												onChange={(evt) => {
+													setTestStep({
+														...testStep,
+														action: evt.target.value,
+													})
+												}}
+											>
+												{actions.map((action) => (
+													<option value={action.action} key={action.action}>
+														{action.label}
+													</option>
+												))}
+											</select>
+										</div>
+
+										{testStepAction?.params &&
+											testStepAction.params.map((param) => {
+												if (
+													param.defaultValue != null &&
+													testStep.args[param.key] == null
+												) {
+													setTestStep({
+														...testStep,
+														args: {
+															...testStep.args,
+															[param.key]: param.defaultValue,
+														},
+													})
+												}
+												return (
+													<ActionParamInput
+														key={param.key}
+														param={param}
+														testStep={testStep}
+														setTestStep={setTestStep}
+													/>
+												)
+											})}
 
 										<div className="form-group">
 											<code>
