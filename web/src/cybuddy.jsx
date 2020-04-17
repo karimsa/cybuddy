@@ -1204,12 +1204,9 @@ function TestHelperChild({
 	)
 }
 TestHelperChild.propTypes = {
-	initialSteps: PropTypes.array.isRequired,
 	execStep: PropTypes.func.isRequired,
 	generateCode: PropTypes.func.isRequired,
-	verifyTestMode: PropTypes.func.isRequired,
 	baseURL: PropTypes.string.isRequired,
-	onEnvReset: PropTypes.func.isRequired,
 	defaultPathname: PropTypes.string.isRequired,
 	isXHRAllowed: PropTypes.func.isRequired,
 	actions: PropTypes.array.isRequired,
