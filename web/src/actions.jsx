@@ -233,6 +233,35 @@ export const createBuiltinActions = (config) => [
 		},
 	},
 	{
+		action: 'contains',
+		label: 'should contain',
+		params: [
+			{
+				key: 'textContent',
+				type: 'string',
+				label: 'Text content',
+			},
+		],
+		generateCode: (testStep) =>
+			`cy.get('${testStep.selector}').contains('${testStep.args.textContent}')`,
+		runStep: (testStep, iframe) => {
+			if (
+				!$(iframe)
+					.contents()
+					.find(createSelector(testStep))
+					.is(`*:contains(${testStep.args.textContent})`) &&
+				$(iframe)
+					.contents()
+					.find(createSelector(testStep))
+					.find(`*:contains(${testStep.args.textContent})`).length === 0
+			) {
+				throw new Error(
+					`Could not find content '${testStep.args.textContent}' in '${testStep.selector}'`,
+				)
+			}
+		},
+	},
+	{
 		action: 'goto',
 		label: 'goto a page',
 		generateCode: (testStep) => `cy.visit('${testStep.selector}')`,
@@ -247,7 +276,7 @@ export const createBuiltinActions = (config) => [
 			{
 				key: 'typeContent',
 				type: 'string',
-				label: 'Type Content',
+				label: 'Type content',
 			},
 		],
 		generateCode: (testStep) =>

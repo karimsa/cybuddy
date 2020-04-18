@@ -14,7 +14,8 @@
 		"concurrently": "^5.1.0",
 		"cypress": "^4.3.0",
 		"nodemon": "^2.0.3",
-		"parcel": "^1.12.4"
+		"parcel": "^1.12.4",
+		"sass": "^1.26.3"
 	},
 	"dependencies": {
 		"@emotion/core": "^10.0.28",

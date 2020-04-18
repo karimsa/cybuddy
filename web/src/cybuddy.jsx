@@ -29,6 +29,9 @@ import {
 	runProxyStep,
 } from './actions'
 
+// Useful for debugging
+window.$ = window.jQuery = $
+
 function shorten(text, maxlen) {
 	if (text.length > maxlen) {
 		return text.substr(0, maxlen) + '...'
@@ -673,7 +676,7 @@ function TestHelperChild({
 																	(step.action === 'type'
 																		? step.args.typeContent
 																		: step.selector),
-																16,
+																25,
 															)}
 														</span>
 													)}
@@ -681,6 +684,7 @@ function TestHelperChild({
 													<button
 														type="button"
 														className="btn btn-sm btn-info mr-2"
+														disabled={isLoading}
 														onClick={() => {
 															setTestFile({
 																...testFile,
@@ -701,6 +705,7 @@ function TestHelperChild({
 													<button
 														type="button"
 														className="btn btn-sm btn-info mr-2"
+														disabled={isLoading}
 														onClick={() => {
 															setTestFile({
 																...testFile,
@@ -721,6 +726,7 @@ function TestHelperChild({
 													<button
 														type="button"
 														className="btn btn-sm btn-danger mr-2"
+														disabled={isLoading}
 														onClick={() => setTestStep(step)}
 													>
 														📝
@@ -728,6 +734,7 @@ function TestHelperChild({
 													<button
 														type="button"
 														className="btn btn-sm btn-warning"
+														disabled={isLoading}
 														onClick={() => runStep(step)}
 													>
 														Run
