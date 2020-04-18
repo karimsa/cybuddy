@@ -175,8 +175,6 @@ function TestHelperChild({
 	actions,
 }) {
 	const iframeRef = createRef()
-	// const openFileRef = createRef()
-	const downloadFileRef = createRef()
 	const [defaultSrc] = useLocalState(
 		'test:iframeSrc',
 		new URL(defaultPathname, baseURL).href,
@@ -421,16 +419,26 @@ function TestHelperChild({
 			``,
 		)
 
-		const objectURL = URL.createObjectURL(
-			new Blob([testFileCode.join('\n')], { type: 'text/plain' }),
-		)
-
-		$(downloadFileRef.current)
-			.attr('download', testFile.name)
-			.attr('href', objectURL)
-
-		if (!window.Cypress) {
-			downloadFileRef.current.click()
+		try {
+			await axios.post(`/api/test-files/${testFile.name}`, {
+				code: testFileCode.join('\n'),
+				force: false,
+			})
+		} catch (error) {
+			if (String(error).includes('EEXIST')) {
+				if (
+					confirm(
+						`${testFile.name} already exists. Do you want to overwrite it?`,
+					)
+				) {
+					await axios.post(`/api/test-files/${testFile.name}`, {
+						code: testFileCode.join('\n'),
+						force: true,
+					})
+				}
+			} else {
+				throw error
+			}
 		}
 
 		setTestFile()
@@ -525,14 +533,6 @@ function TestHelperChild({
 							/>
 						</div>
 					)}
-
-					{/* Used later for downloading files, but must exist outside of testStep context */}
-					<a
-						data-test="save-file"
-						ref={downloadFileRef}
-						href="#"
-						className="d-none"
-					/>
 
 					{testFile && (
 						<React.Fragment>

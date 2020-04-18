@@ -184,9 +184,28 @@ async function main() {
 			)
 			const childModule = { exports: {} }
 			// eslint-disable-next-line
-		const fn = new Function('describe', 'require', 'module', testCode)
+			const fn = new Function('describe', 'require', 'module', testCode)
 			fn(noop, noop, childModule)
 			return childModule.exports
+		}),
+	)
+	apiRouter.post(
+		'/test-files/:filename',
+		route(async (req) => {
+			const { code, force } = req.body
+			await fs.writeFile(
+				path.resolve(
+					process.cwd(),
+					'cypress',
+					'integration',
+					req.params.filename,
+				),
+				code,
+				{
+					flag: force ? 'w' : 'wx',
+				},
+			)
+			return { ok: true }
 		}),
 	)
 
