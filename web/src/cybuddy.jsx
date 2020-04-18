@@ -29,6 +29,7 @@ import {
 	runProxyStep,
 } from './actions'
 import { ButtonDropdown } from './button-dropdown'
+import { useFileOpenMenu } from './file-open-menu'
 
 // Useful for debugging
 window.$ = window.jQuery = $
@@ -38,10 +39,6 @@ function shorten(text, maxlen) {
 		return text.substr(0, maxlen) + '...'
 	}
 	return text
-}
-
-function noop() {
-	// NO-OP
 }
 
 function ActionParamInput({ param, testStep, setTestStep }) {
@@ -178,7 +175,7 @@ function TestHelperChild({
 	actions,
 }) {
 	const iframeRef = createRef()
-	const openFileRef = createRef()
+	// const openFileRef = createRef()
 	const downloadFileRef = createRef()
 	const [defaultSrc] = useLocalState(
 		'test:iframeSrc',
@@ -188,31 +185,6 @@ function TestHelperChild({
 	const [mode, setMode] = useLocalState('test:mode', 'navigation')
 	const [activeElm, setActiveElm] = useLocalState('test:activeElm')
 	const [testStep, setTestStep] = useLocalState('test:step')
-	const [
-		openFileState,
-		{ fetch: openFile, reset: resetOpenFileState },
-	] = useAsyncAction((file) => {
-		return new Promise((resolve, reject) => {
-			const fileReader = new FileReader()
-			fileReader.addEventListener('loadend', () => {
-				if (fileReader.error) {
-					reject(fileReader.error)
-				} else {
-					const childModule = { exports: {} }
-					// eslint-disable-next-line
-					const fn = new Function('describe', 'require', 'module', fileReader.result)
-					fn(noop, noop, childModule)
-					childModule.exports.steps.forEach((step) => {
-						// All step IDs are re-generated, in case the file was
-						// modified after it was exported
-						step.id = uuid()
-					})
-					resolve(childModule.exports)
-				}
-			})
-			fileReader.readAsText(file, 'UTF-8')
-		})
-	})
 	const [
 		saveTemplateState,
 		{ fetch: saveTemplate, reset: resetSaveTemplateState },
@@ -360,11 +332,6 @@ function TestHelperChild({
 		}
 	}, [iframeRef.current])
 	useEffect(() => {
-		if (openFileState.result) {
-			setTestFile(openFileState.result)
-		}
-	}, [openFileState.result])
-	useEffect(() => {
 		if (testFile?.steps?.length > 0 && !runningState?.running) {
 			runStep(testFile.steps[testFile.steps.length - 1], iframeRef.current)
 		}
@@ -472,6 +439,13 @@ function TestHelperChild({
 
 	const stepPreviewState = useAsync(generateCode, [testStep])
 
+	const [openFileState, fileOpenActions, FileOpenMenu] = useFileOpenMenu()
+	useEffect(() => {
+		if (openFileState.result) {
+			setTestFile(openFileState.result)
+		}
+	}, [openFileState.result])
+
 	const error =
 		openFileState.error ||
 		saveTemplateState.error ||
@@ -479,7 +453,7 @@ function TestHelperChild({
 		runState.error ||
 		runningState?.error
 	function resetError() {
-		resetOpenFileState()
+		fileOpenActions.reset()
 		resetSaveTemplateState()
 		resetSaveTestFileState()
 		resetRunState()
@@ -490,7 +464,7 @@ function TestHelperChild({
 		testStep && testFile.steps.find((step) => step.id === testStep.id)
 	const isLoading =
 		saveTemplateState.status === 'inprogress' ||
-		openFile.status === 'inprogress' ||
+		openFileState.status === 'inprogress' ||
 		runState.status === 'inprogress' ||
 		saveTestFileState.status === 'inprogress'
 	const testStepAction =
@@ -515,23 +489,7 @@ function TestHelperChild({
 						<div className="d-flex align-items-center justify-content-center flex-column h-100">
 							<Header isLoading={isLoading} error={error} />
 
-							<input
-								type="file"
-								ref={openFileRef}
-								className="d-none"
-								onChange={(evt) => {
-									openFile(evt.target.files[0])
-								}}
-							/>
-
-							<button
-								type="button"
-								className="btn btn-block btn-primary"
-								onClick={() => openFileRef.current.click()}
-								disabled={isLoading}
-							>
-								Open test
-							</button>
+							{FileOpenMenu}
 
 							<button
 								type="button"

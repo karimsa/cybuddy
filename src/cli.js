@@ -43,6 +43,10 @@ function route(fn) {
 	}
 }
 
+function noop() {
+	// NO-OP
+}
+
 const kConfigMissing = Symbol('kConfigMissing')
 
 function openConfigFile() {
@@ -156,6 +160,36 @@ async function main() {
 			}
 		}),
 	)
+
+	apiRouter.get(
+		'/test-files',
+		route(async () => {
+			const files = await fs.readdir('./cypress/integration')
+			return files.filter((filename) => {
+				return filename.endsWith('.spec.js')
+			})
+		}),
+	)
+	apiRouter.get(
+		'/test-files/:filename',
+		route(async (req) => {
+			const testCode = await fs.readFile(
+				path.resolve(
+					process.cwd(),
+					'cypress',
+					'integration',
+					req.params.filename,
+				),
+				'utf8',
+			)
+			const childModule = { exports: {} }
+			// eslint-disable-next-line
+		const fn = new Function('describe', 'require', 'module', testCode)
+			fn(noop, noop, childModule)
+			return childModule.exports
+		}),
+	)
+
 	apiRouter.get(
 		'/templates',
 		route(async () => {
