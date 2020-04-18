@@ -2,10 +2,10 @@ import * as http from 'http'
 import * as path from 'path'
 import { promises as fs } from 'fs'
 
-import open from 'open'
 import express from 'express'
 import bodyParser from 'body-parser'
 import proxy from 'express-http-proxy'
+import puppeteer from 'puppeteer'
 
 function checkUrl(url) {
 	return new Promise((resolve, reject) => {
@@ -43,8 +43,22 @@ function route(fn) {
 	}
 }
 
+const kConfigMissing = Symbol('kConfigMissing')
+
+function openConfigFile() {
+	try {
+		return require(path.join(process.cwd(), 'cybuddy.config.js'))
+	} catch (error) {
+		if (!String(error).match(/Cannot find module.*cybuddy\.config\.js/)) {
+			throw error
+		}
+		return {
+			[kConfigMissing]: true,
+		}
+	}
+}
+
 async function main() {
-	const kConfigMissing = Symbol('kConfigMissing')
 	const config = Object.assign(
 		{
 			async verifyTestMode() {
@@ -56,20 +70,8 @@ async function main() {
 			targetUrl: null,
 			actions: [],
 			port: 2468,
-			open: true,
 		},
-		(function () {
-			try {
-				return require(path.join(process.cwd(), 'cybuddy.config.js'))
-			} catch (error) {
-				if (!String(error).includes('Cannot find module')) {
-					throw error
-				}
-				return {
-					[kConfigMissing]: true,
-				}
-			}
-		})(),
+		openConfigFile(),
 	)
 	if (config[kConfigMissing]) {
 		const prompts = require('prompts')
@@ -91,6 +93,7 @@ async function main() {
 		await fs.writeFile(
 			path.join(process.cwd(), 'cybuddy.config.js'),
 			[`module.exports = {`, `\ttargetUrl: '${targetUrl}',`, `}`].join('\n'),
+			{ flag: 'wx' },
 		)
 	}
 	if (!config.targetUrl) {
@@ -149,6 +152,7 @@ async function main() {
 
 			return {
 				targetUrl: config.targetUrl,
+				actions: config.actions,
 			}
 		}),
 	)
@@ -204,6 +208,84 @@ async function main() {
 			)
 		}),
 	)
+	apiRouter.post(
+		'/actions/:action/generate',
+		route(async (req) => {
+			const action = (config.actions || []).find(
+				(action) => action.action === req.params.action,
+			)
+			if (!action) {
+				throw new APIError(
+					`Could not find action with name '${req.params.action}'`,
+					404,
+				)
+			}
+			if (!action.generateStep) {
+				throw new APIError(
+					`Action '${action.action}' does not implement .generateStep()`,
+				)
+			}
+
+			const testStep = req.body
+			const code = await action.generateStep(testStep)
+			if (typeof code !== 'string') {
+				throw new Error(
+					`Action '${action.action}' returned a non-string result for .generateStep()`,
+				)
+			}
+			return {
+				code: [testStep.comment && `// ${testStep.comment}`, code]
+					.filter(Boolean)
+					.join('\n'),
+			}
+		}),
+	)
+
+	function createCyProxy(runSteps) {
+		return new Proxy(
+			{},
+			{
+				get(_, method) {
+					return (...args) => {
+						const chain = []
+						runSteps.push({
+							method,
+							args,
+							chain,
+						})
+						return createCyProxy(chain)
+					}
+				},
+			},
+		)
+	}
+
+	apiRouter.post(
+		'/actions/:action/run',
+		route(async (req) => {
+			const action = (config.actions || []).find(
+				(action) => action.action === req.params.action,
+			)
+			if (!action) {
+				throw new APIError(
+					`Could not find action with name '${req.params.action}'`,
+					404,
+				)
+			}
+			if (!action.runStep) {
+				throw new APIError(
+					`Action '${action.action}' does not implement .runStep()`,
+				)
+			}
+
+			const testStep = req.body
+			const runSteps = []
+			const cyProxy = createCyProxy(runSteps)
+
+			await action.runStep(testStep, cyProxy)
+			return runSteps
+		}),
+	)
 	apiRouter.use(
 		route((req) => {
 			throw new APIError(`API route does not exist: ${req.path}`, 404)
@@ -224,15 +306,24 @@ async function main() {
 	app.use(proxy(config.targetUrl))
 
 	const server = http.createServer(app)
-	server.listen(config.port, () => {
-		console.log(
-			`🚀 Server started at: http://localhost:${config.port}/cybuddy/`,
-		)
-
-		if (config.open) {
-			open(`http://localhost:${config.port}/cybuddy/`)
-		}
+	await new Promise((resolve, reject) => {
+		server.on('error', reject)
+		server.listen(config.port, () => {
+			console.log(
+				`🚀 Server started at: http://localhost:${config.port}/cybuddy/`,
+			)
+			resolve()
+		})
 	})
+
+	console.log(`🌍 Opening browser ...`)
+	const browser = await puppeteer.launch({
+		args: ['--disable-web-security'],
+		headless: false,
+		defaultViewport: null,
+	})
+	const [page] = await browser.pages()
+	await page.goto(`http://localhost:${config.port}/cybuddy/`)
 }
 
 main().catch((error) => {

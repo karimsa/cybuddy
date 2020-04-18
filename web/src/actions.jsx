@@ -7,24 +7,6 @@ export function onXHRRequest(event) {
 	iframeXHREvents.push(event)
 }
 
-function resetEnvironment(iframe) {
-	// Cookie reset
-	for (const key in Cookies.get()) {
-		Cookies.remove(key)
-	}
-
-	// Storage reset
-	const keys = []
-	for (let i = 0; i < iframe.contentWindow.localStorage.length; i++) {
-		if (!iframe.contentWindow.localStorage.key(i).startsWith('test:')) {
-			keys.push(iframe.contentWindow.localStorage.key(i))
-		}
-	}
-	for (const key of keys) {
-		iframe.contentWindow.localStorage.removeItem(key)
-	}
-}
-
 export function createSelector(testStep) {
 	if (testStep.selectType === 'content') {
 		return [
@@ -64,17 +46,72 @@ function setInputValue(input, value) {
 	input.dispatchEvent(event)
 }
 
-export const builtinActions = [
+const createCyProxy = (iframe, { originHost }) => ({
+	visit(href) {
+		const target = new URL(href)
+		if (originHost !== target.host) {
+			throw new Error(
+				`cy.visit() tried to access different domain (${target.host})`,
+			)
+		}
+
+		iframe.src = href
+	},
+	clearCookies() {
+		for (const key in Cookies.get()) {
+			Cookies.remove(key)
+		}
+	},
+	clearLocalStorage() {
+		const keys = []
+		for (let i = 0; i < iframe.contentWindow.localStorage.length; i++) {
+			if (!iframe.contentWindow.localStorage.key(i).startsWith('test:')) {
+				keys.push(iframe.contentWindow.localStorage.key(i))
+			}
+		}
+		for (const key of keys) {
+			iframe.contentWindow.localStorage.removeItem(key)
+		}
+	},
+})
+
+export function runProxyStep({ method, args, chain }, iframe, config) {
+	const cy = createCyProxy(iframe, config)
+
+	if (!cy[method]) {
+		throw new Error(`cy.${method}() is not a function`)
+	}
+	let ctx = cy[method].apply(cy, args)
+	const chained = [method]
+
+	for (const { method, args } of chain) {
+		if (!ctx[method][method]) {
+			throw new Error(
+				`cy.${chained.map((m) => '.' + m + '()').join('')} is not a function`,
+			)
+		}
+		ctx = ctx[method].apply(ctx, args)
+		chained.push(method)
+	}
+}
+
+export const createBuiltinActions = (config) => [
 	{
 		action: 'reset',
 		label: 'resets the state',
 		hideSelectorInput: true,
 		params: [],
 		generateCode: () =>
-			[`cy.clearCookies()`, `cy.clearLocalStorage()`, `cy.reload()`].join('\n'),
+			[
+				`cy.clearCookies()`,
+				`cy.clearLocalStorage()`,
+				`cy.visit(${new URL(config.defaultPathname, config.baseURL).href})`,
+			].join('\n'),
 		runStep(_, iframe) {
-			resetEnvironment($('iframe').get(0))
-			iframe.contentWindow.location.reload()
+			const cy = createCyProxy(iframe)
+			cy.clearCookies()
+			cy.clearLocalStorage()
+			cy.visit(new URL(config.defaultPathname, config.baseURL).href)
 		},
 	},
 	{

@@ -4,7 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'babel-polyfill'
 import $ from 'jquery'
 import 'bootstrap/dist/js/bootstrap.min.js'
-import React, { useEffect, createRef, useState } from 'react'
+import React, { useEffect, createRef } from 'react'
 import { css, jsx } from '@emotion/core'
 import { v4 as uuid } from 'uuid'
 import PropTypes from 'prop-types'
@@ -15,8 +15,19 @@ import imgLogo from './logo.svg'
 import { RadioSwitch } from './radio-switch'
 import { Alert } from './alert'
 import { Spinner } from './spinner'
-import { useLocalState, useReducer, useAsyncAction, useAPI } from './hooks'
-import { onXHRRequest, builtinActions, createSelector } from './actions'
+import {
+	useLocalState,
+	useReducer,
+	useAsyncAction,
+	useAPI,
+	useAsync,
+} from './hooks'
+import {
+	onXHRRequest,
+	createBuiltinActions,
+	createSelector,
+	runProxyStep,
+} from './actions'
 
 function shorten(text, maxlen) {
 	if (text.length > maxlen) {
@@ -191,7 +202,10 @@ function TestHelperChild({
 	const [mode, setMode] = useLocalState('test:mode', 'navigation')
 	const [activeElm, setActiveElm] = useLocalState('test:activeElm')
 	const [testStep, setTestStep] = useLocalState('test:step')
-	const [openFileState, { fetch: openFile }] = useAsyncAction((file) => {
+	const [
+		openFileState,
+		{ fetch: openFile, reset: resetOpenFileState },
+	] = useAsyncAction((file) => {
 		return new Promise((resolve, reject) => {
 			const fileReader = new FileReader()
 			fileReader.addEventListener('loadend', () => {
@@ -213,11 +227,12 @@ function TestHelperChild({
 			fileReader.readAsText(file, 'UTF-8')
 		})
 	})
-	const [saveTemplateState, { fetch: saveTemplate }] = useAsyncAction(
-		(testFile) => {
-			return axios.post('/api/templates', testFile)
-		},
-	)
+	const [
+		saveTemplateState,
+		{ fetch: saveTemplate, reset: resetSaveTemplateState },
+	] = useAsyncAction((testFile) => {
+		return axios.post('/api/templates', testFile)
+	})
 
 	useEffect(() => {
 		if (saveTemplateState.status === 'success') {
@@ -303,9 +318,11 @@ function TestHelperChild({
 		},
 	})
 
-	const [runState, { fetch: runStep }] = useAsyncAction(async (step) => {
-		return execStep(step, iframeRef.current)
-	})
+	const [runState, { fetch: runStep, reset: resetRunState }] = useAsyncAction(
+		async (step) => {
+			return execStep(step, iframeRef.current)
+		},
+	)
 	useEffect(() => {
 		if (runState.error) {
 			dispatch({ type: 'setError', error: runState.error })
@@ -411,67 +428,48 @@ function TestHelperChild({
 		}
 	}, [testStep?.action === 'select'])
 
-	const testStepIsSaved =
-		testStep && testFile.steps.find((step) => step.id === testStep.id)
-	const isLoading =
-		saveTemplateState.status === 'inprogress' ||
-		openFile.status === 'inprogress' ||
-		runState.status === 'inprogress'
-	const testStepAction =
-		testStep && actions.find((action) => action.action === testStep.action)
+	const [
+		saveTestFileState,
+		{ fetch: saveTestFile, reset: resetSaveTestFileState },
+	] = useAsyncAction(async () => {
+		const testFileCode = [
+			`/* eslint-disable */`,
+			`const helpers = require('@karimsa/cybuddy/helpers')`,
+			``,
+			`describe('${testFile.name}', () => {`,
+			`\tit('${testFile.description}', () => {`,
+			`\t\tCypress.config('baseUrl', '${baseURL}')`,
+			`\t\tcy.visit('${defaultPathname}')`,
+		]
 
-	const [error, setError] = useState()
-	useEffect(() => {
-		setError(
-			openFile.error ||
-				saveTemplateState.error ||
-				runState.error ||
-				runningState?.error,
+		for (
+			let i = 0, step = testFile.steps[0];
+			i < testFile.steps.length;
+			step = testFile.steps[++i]
+		) {
+			const stepCode = (await generateCode(step))
+				.split('\n')
+				.map((l) => '\t\t' + l)
+				.join('\n')
+			if (testFile.checksErrorsAfterEveryStep && i > 0) {
+				testFileCode.push(
+					stepCode + `\n\t\tcy.get('.alert-danger').should('not.exist')`,
+				)
+			} else {
+				testFileCode.push(stepCode)
+			}
+		}
+
+		testFileCode.push(
+			`\t})`,
+			`})`,
+			``,
+			`module.exports = ${JSON.stringify(testFile, null, '\t')}`,
+			``,
 		)
-	}, [
-		openFile.error ||
-			saveTemplateState.error ||
-			runState.error ||
-			runningState?.error,
-	])
 
-	function saveTestFile() {
 		const objectURL = URL.createObjectURL(
-			new Blob(
-				[
-					[
-						`/* eslint-disable */`,
-						`const helpers = require('@karimsa/cybuddy/helpers')`,
-						``,
-						`describe('${testFile.name}', () => {`,
-						`\tit('${testFile.description}', () => {`,
-						`\t\tCypress.config('baseUrl', '${baseURL}')`,
-						`\t\tcy.visit('${defaultPathname}')`,
-						testFile.steps
-							.map((step, index) => {
-								const stepCode = generateCode(step)
-									.split('\n')
-									.map((l) => '\t\t' + l)
-									.join('\n')
-								if (testFile.checksErrorsAfterEveryStep && index > 0) {
-									return (
-										stepCode +
-										`\n\t\tcy.get('.alert-danger').should('not.exist')`
-									)
-								}
-								return stepCode
-							})
-							.filter((s) => s.trim())
-							.join('\n\n'),
-						`\t})`,
-						`})`,
-						``,
-						`module.exports = ${JSON.stringify(testFile, null, '\t')}`,
-						``,
-					].join('\n'),
-				],
-				{ type: 'text/plain' },
-			),
+			new Blob([testFileCode.join('\n')], { type: 'text/plain' }),
 		)
 
 		$(downloadFileRef.current)
@@ -484,7 +482,33 @@ function TestHelperChild({
 
 		setTestFile()
 		setMode('navigation')
+	})
+
+	const stepPreviewState = useAsync(generateCode, [testStep])
+
+	const error =
+		openFileState.error ||
+		saveTemplateState.error ||
+		saveTestFileState.error ||
+		runState.error ||
+		runningState?.error
+	function resetError() {
+		resetOpenFileState()
+		resetSaveTemplateState()
+		resetSaveTestFileState()
+		resetRunState()
+		dispatch({ type: 'setError' })
 	}
+
+	const testStepIsSaved =
+		testStep && testFile.steps.find((step) => step.id === testStep.id)
+	const isLoading =
+		saveTemplateState.status === 'inprogress' ||
+		openFile.status === 'inprogress' ||
+		runState.status === 'inprogress' ||
+		saveTestFileState.status === 'inprogress'
+	const testStepAction =
+		testStep && actions.find((action) => action.action === testStep.action)
 
 	return (
 		<div
@@ -725,7 +749,7 @@ function TestHelperChild({
 												type="danger"
 												dismissable={true}
 												className="mb-4"
-												onDismiss={setError}
+												onDismiss={resetError}
 											>
 												{String(error).split('\n')[0]}
 											</Alert>
@@ -992,10 +1016,14 @@ function TestHelperChild({
 														border-radius: 10px;
 														color: #fff;
 													`}
-													dangerouslySetInnerHTML={{
-														__html: generateCode(testStep),
-													}}
-												/>
+												>
+													{stepPreviewState.error
+														? String(stepPreviewState.error)
+																.split('\n')
+																.map((line) => '// ' + line)
+																.join('\n')
+														: stepPreviewState.result ?? '// Loading preview'}
+												</pre>
 											</code>
 										</div>
 
@@ -1253,19 +1281,40 @@ export function CyBuddy() {
 		)
 	}
 
-	// TODO: Load custom actions from server
-	const actions = builtinActions.concat([] ?? [])
 	const target = new URL(data.targetUrl)
-	const childProps = {
-		isXHRAllowed: () => true,
+	const config = {
+		originHost: target.host,
 		baseURL: `http://${location.host}`,
 		defaultPathname: target.pathname,
+	}
+	const builtinActions = createBuiltinActions(config)
+	const actions = builtinActions.concat(data.actions ?? [])
+	const serverActions = new Set(data.actions.map((action) => action.action))
+	const childProps = {
+		isXHRAllowed: () => true,
+		baseURL: config.baseURL,
+		defaultPathname: config.defaultPathname,
 		actions,
-		generateCode: (testStep) => {
+		generateCode: async (testStep) => {
+			if (serverActions.has(testStep.action)) {
+				const {
+					data: { code },
+				} = await axios.post(
+					`/api/actions/${testStep.action}/generate`,
+					testStep,
+				)
+				return code
+			}
+
 			const action = actions.find((action) => action.action === testStep.action)
 			if (!action) {
 				throw new Error(
 					`Unrecognized action specified by step: ${testStep.action}`,
+				)
+			}
+			if (!action.generateCode) {
+				throw new Error(
+					`Action '${testStep.action}' does not implement .generateCode()`,
 				)
 			}
 			return [
@@ -1275,11 +1324,27 @@ export function CyBuddy() {
 				.filter(Boolean)
 				.join('\n')
 		},
-		execStep: (testStep, iframe) => {
+		execStep: async (testStep, iframe) => {
+			if (serverActions.has(testStep.action)) {
+				const { data: steps } = await axios.post(
+					`/api/actions/${testStep.action}/run`,
+					testStep,
+				)
+				steps.forEach((step) => {
+					runProxyStep(step, iframe, config)
+				})
+				return
+			}
+
 			const action = actions.find((action) => action.action === testStep.action)
 			if (!action) {
 				throw new Error(
 					`Unrecognized action specified by step: ${testStep.action}`,
+				)
+			}
+			if (!action.runStep) {
+				throw new Error(
+					`Action '${testStep.action}' does not implement .runStep()`,
 				)
 			}
 			return action.runStep(testStep, iframe)
