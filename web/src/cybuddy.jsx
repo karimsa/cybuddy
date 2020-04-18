@@ -28,6 +28,7 @@ import {
 	createSelector,
 	runProxyStep,
 } from './actions'
+import { ButtonDropdown } from './button-dropdown'
 
 // Useful for debugging
 window.$ = window.jQuery = $
@@ -121,36 +122,18 @@ function CreateFromTemplate({ onOpen, disabled }) {
 
 	return (
 		<React.Fragment>
-			<div className="dropdown btn-block mt-2">
-				<button
-					type="button"
-					className="btn btn-block btn-success dropdown-toggle d-flex align-items-center justify-content-center"
-					disabled={disabled || isValidating}
-					data-toggle="dropdown"
-				>
-					{(isValidating || templateContentsState.status === 'inprogress') && (
-						<Spinner color="light" />
-					)}
-					<span className="ml-2">Create test from template</span>
-				</button>
-
-				<div className="dropdown-menu">
-					{templates &&
-						templates.map((template) => (
-							<a
-								key={template}
-								href="#"
-								className="dropdown-item"
-								onClick={(evt) => {
-									evt.preventDefault()
-									openTemplate(template)
-								}}
-							>
-								{template}
-							</a>
-						))}
-				</div>
-			</div>
+			<ButtonDropdown
+				variant="success"
+				className="btn-block mt-2"
+				isLoading={isValidating}
+				disabled={disabled}
+				choices={
+					templates ? templates.map((template) => [template, template]) : []
+				}
+				onSelect={openTemplate}
+			>
+				Create test from template
+			</ButtonDropdown>
 
 			{(error || templateContentsState.error) && (
 				<div className="mt-4">
@@ -763,50 +746,23 @@ function TestHelperChild({
 										)}
 
 										<div className="d-flex justify-content-between">
-											<div className="dropdown">
-												<button
-													type="button"
-													className="btn btn-primary dropdown-toggle d-flex align-items-center justify-content-center"
-													disabled={isLoading}
-													data-toggle="dropdown"
-												>
-													{saveTemplateState.status === 'inprogress' && (
-														<Spinner color="light" />
-													)}
-													<span
-														className={
-															saveTemplateState.status === 'inprogress'
-																? 'ml-2'
-																: ''
-														}
-													>
-														Save file
-													</span>
-												</button>
-
-												<div className="dropdown-menu">
-													<a
-														href="#"
-														className="dropdown-item"
-														onClick={(evt) => {
-															evt.preventDefault()
-															saveTestFile()
-														}}
-													>
-														as test file
-													</a>
-													<a
-														href="#"
-														className="dropdown-item"
-														onClick={(evt) => {
-															evt.preventDefault()
-															saveTemplate()
-														}}
-													>
-														as template
-													</a>
-												</div>
-											</div>
+											<ButtonDropdown
+												variant="primary"
+												isLoading={
+													saveTestFileState.status === 'inprogress' ||
+													saveTemplateState.status === 'inprogress'
+												}
+												disabled={isLoading}
+												choices={[
+													['testFile', 'as test file'],
+													['template', 'as template'],
+												]}
+												onSelect={(key) =>
+													key === 'testFile' ? saveTestFile() : saveTemplate()
+												}
+											>
+												Save file
+											</ButtonDropdown>
 
 											{!runningState?.running && (
 												<button
