@@ -1005,10 +1005,8 @@ function TestHelperChild({
 						testFile &&
 						testStep &&
 						activeElm?.startX != null &&
-						testStep?.action !== 'location' &&
-						testStep?.action !== 'goto' &&
-						testStep?.action !== 'reload' &&
-						testStep?.action !== 'xhr' && (
+						testStepAction &&
+						!testStepAction.hideSelectorInput && (
 							<React.Fragment>
 								{/* top */}
 								<div
