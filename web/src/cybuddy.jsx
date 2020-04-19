@@ -460,6 +460,9 @@ function TestHelperChild({
 		saveTestFileState.error ||
 		runState.error ||
 		runningState?.error
+	if (error) {
+		console.error(error)
+	}
 	function resetError() {
 		fileOpenActions.reset()
 		resetSaveTemplateState()
