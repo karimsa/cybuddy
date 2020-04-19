@@ -1,5 +1,4 @@
-const Cypress = global.Cypress
-const cy = global.cy
+const { Cypress, cy, beforeEach } = global
 
 try {
 	const _ = Cypress.env
@@ -8,6 +7,10 @@ try {
 }
 
 const API_URL = Cypress.env('API_URL')
+
+beforeEach(() => {
+	cy.server()
+})
 
 export function resetEnv() {
 	cy.clearCookies()

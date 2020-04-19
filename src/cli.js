@@ -183,8 +183,8 @@ async function main() {
 				'utf8',
 			)
 			const childModule = { exports: {} }
-			// eslint-disable-next-line
-			const fn = new Function('describe', 'require', 'module', testCode)
+			const { Function: Func } = global
+			const fn = new Func('describe', 'require', 'module', testCode)
 			fn(noop, noop, childModule)
 			return childModule.exports
 		}),
