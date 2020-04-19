@@ -167,6 +167,7 @@ Header.propTypes = {
 }
 
 function TestHelperChild({
+	originUrl,
 	baseURL,
 	defaultPathname,
 	isXHRAllowed,
@@ -389,8 +390,7 @@ function TestHelperChild({
 			``,
 			`describe('${testFile.name}', () => {`,
 			`\tit('${testFile.description}', () => {`,
-			`\t\tCypress.config('baseUrl', '${baseURL}')`,
-			`\t\tcy.visit('${defaultPathname}')`,
+			`\t\tCypress.config('baseUrl', '${originUrl.href}')`,
 		]
 
 		for (
@@ -1172,6 +1172,7 @@ function TestHelperChild({
 TestHelperChild.propTypes = {
 	execStep: PropTypes.func.isRequired,
 	generateCode: PropTypes.func.isRequired,
+	originUrl: PropTypes.object.isRequired,
 	baseURL: PropTypes.string.isRequired,
 	defaultPathname: PropTypes.string.isRequired,
 	isXHRAllowed: PropTypes.func.isRequired,
@@ -1204,7 +1205,7 @@ export function CyBuddy() {
 
 	const target = new URL(data.targetUrl)
 	const config = {
-		originHost: target.host,
+		originUrl: target,
 		baseURL: `http://${location.host}`,
 		defaultPathname: target.pathname,
 	}
@@ -1213,6 +1214,7 @@ export function CyBuddy() {
 	const serverActions = new Set(data.actions.map((action) => action.action))
 	const childProps = {
 		isXHRAllowed: () => true,
+		originUrl: config.originUrl,
 		baseURL: config.baseURL,
 		defaultPathname: config.defaultPathname,
 		actions,

@@ -46,16 +46,16 @@ function setInputValue(input, value) {
 	input.dispatchEvent(event)
 }
 
-const createCyProxy = (iframe, { originHost }) => ({
+const createCyProxy = (iframe, { originUrl, baseURL }) => ({
 	visit(href) {
 		const target = new URL(href)
-		if (originHost !== target.host) {
+		if (target.host && originUrl.host !== target.host) {
 			throw new Error(
 				`cy.visit() tried to access different domain (${target.host})`,
 			)
 		}
 
-		iframe.src = href
+		iframe.src = new URL(target.pathname + target.search, baseURL).href
 	},
 	clearCookies() {
 		for (const key in Cookies.get()) {
@@ -105,13 +105,13 @@ export const createBuiltinActions = (config) => [
 			[
 				`cy.clearCookies()`,
 				`cy.clearLocalStorage()`,
-				`cy.visit(${new URL(config.defaultPathname, config.baseURL).href})`,
+				`cy.visit(${new URL(config.defaultPathname, config.baseURL).pathname})`,
 			].join('\n'),
 		runStep(_, iframe) {
 			const cy = createCyProxy(iframe)
 			cy.clearCookies()
 			cy.clearLocalStorage()
-			cy.visit(new URL(config.defaultPathname, config.baseURL).href)
+			cy.visit(new URL(config.defaultPathname, config.baseURL).pathname)
 		},
 	},
 	{
