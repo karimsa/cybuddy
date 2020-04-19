@@ -48,8 +48,12 @@ function setInputValue(input, value) {
 
 const createCyProxy = (iframe, { originUrl, baseURL }) => ({
 	visit(href) {
-		const target = new URL(href)
-		if (target.host && originUrl.host !== target.host) {
+		const target = new URL(href, baseURL)
+		if (
+			target.host &&
+			originUrl.host !== target.host &&
+			target.host !== new URL(baseURL).host
+		) {
 			throw new Error(
 				`cy.visit() tried to access different domain (${target.host})`,
 			)
@@ -72,6 +76,17 @@ const createCyProxy = (iframe, { originUrl, baseURL }) => ({
 		for (const key of keys) {
 			iframe.contentWindow.localStorage.removeItem(key)
 		}
+	},
+	wait(time) {
+		time = Number(time)
+		if (isNaN(time)) {
+			throw new Error(
+				`Invalid numeric timeout: ${time}. CyBuddy does not support request aliasing`,
+			)
+		}
+		return new Promise((resolve) => {
+			setTimeout(resolve, time)
+		})
 	},
 })
 
@@ -379,6 +394,22 @@ export const createBuiltinActions = (config) => [
 				throw new Error(`'${testStep.selector}' is disabled (should not be)`)
 			}
 		},
+	},
+	{
+		action: 'wait',
+		label: 'wait for time to pass',
+		hideSelectorInput: true,
+		params: [
+			{
+				key: 'timeout',
+				label: 'Timeout (ms)',
+				type: 'number',
+				defaultValue: 500,
+			},
+		],
+		generateCode: (testStep) => `cy.wait(${testStep.args.timeout})`,
+		runStep: (testStep, iframe) =>
+			createCyProxy(iframe, config).wait(testStep.args.timeout),
 	},
 	{
 		action: 'code',
