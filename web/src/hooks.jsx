@@ -200,6 +200,7 @@ export function useAPI(path, options = {}) {
 		},
 		{
 			revalidateOnFocus: false,
+			refreshInterval: 5e3,
 			...options,
 		},
 	)
