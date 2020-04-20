@@ -1,6 +1,6 @@
 {
 	"name": "@hirefast/cybuddy",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"scripts": {
 		"start": "concurrently -k 'cd cypress/fixtures && ../../node_modules/.bin/serve' 'wiz build -w src/cli.js' 'cd web && npm start'",
 		"lint": "eslint .",
