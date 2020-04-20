@@ -47,6 +47,7 @@ function setInputValue(input, value) {
 }
 
 const createCyProxy = (iframe, { originUrl, baseURL }) => ({
+	$,
 	visit(href) {
 		const target = new URL(href, baseURL)
 		if (
@@ -87,6 +88,10 @@ const createCyProxy = (iframe, { originUrl, baseURL }) => ({
 		return new Promise((resolve) => {
 			setTimeout(resolve, time)
 		})
+	},
+	runOnClient(code) {
+		const { Function: Func } = iframe.contentWindow
+		return new Func('cy', code).call(iframe.contentWindow, this)
 	},
 })
 
