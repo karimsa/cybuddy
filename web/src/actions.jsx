@@ -140,7 +140,14 @@ export const createBuiltinActions = (config) => [
 			},
 		],
 		generateCode: (testStep) =>
-			`cy.get('${testStep.selector}').clear().type('${testStep.args.typeContent}')`,
+			[
+				'cy',
+				testStep.timeout > 0
+					? `get('${testStep.selector}', { timeout: ${testStep.timeout} })`
+					: `get('${testStep.selector}')`,
+				'clear()',
+				`type('${testStep.args.typeContent}')`,
+			].join('.'),
 		runStep: (testStep, iframe) =>
 			setInputValue(
 				$(iframe).contents().find(createSelector(testStep)).get(0),
@@ -150,17 +157,37 @@ export const createBuiltinActions = (config) => [
 	{
 		action: 'click',
 		label: 'click element',
+		params: [
+			{
+				key: 'forceClick',
+				label: 'Force click',
+				type: 'checkbox',
+				defaultValue: false,
+			},
+		],
 		generateCode(testStep) {
-			if (testStep.selectType === 'content') {
-				return `cy.contains('${testStep.selector}').click()`
-			}
-			return `cy.get('${testStep.selector}').click()`
+			return [
+				'cy',
+				testStep.selectType === 'content'
+					? `contains('${testStep.selector}')`
+					: `get('${testStep.selector}')`,
+				testStep.timeout > 0
+					? `click({ timeout: ${testStep.timeout} })`
+					: 'click()',
+			].join('.')
 		},
 		runStep: (testStep, iframe) => {
 			const elm = $(iframe).contents().find(createSelector(testStep)).get(0)
 			if (!elm) {
 				throw new Error(
 					`No element found matching selector: ${createSelector(testStep)}`,
+				)
+			}
+			if (!testStep.args.forceClick && $(elm).is(':disabled')) {
+				throw new Error(
+					`Cannot perform click on disabled element: ${createSelector(
+						testStep,
+					)}`,
 				)
 			}
 			elm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -193,10 +220,15 @@ export const createBuiltinActions = (config) => [
 			},
 		],
 		generateCode: (testStep) => {
-			if (testStep.args.locationMatchType === 'startsWith') {
-				return `cy.location('${testStep.args.locationProperty}').should('match', new RegExp('^${testStep.selector}'))`
-			}
-			return `cy.location('${testStep.args.locationProperty}').should('eq', '${testStep.selector}')`
+			return [
+				'cy',
+				testStep.timeout > 0
+					? `location('${testStep.args.locationProperty}', { timeout: ${testStep.timeout} })`
+					: `location('${testStep.args.locationProperty}')`,
+				testStep.args.locationMatchType === 'startsWith'
+					? `should('match', new RegExp('^${testStep.selector}'))`
+					: `should('eq', '${testStep.selector}')`,
+			].join('.')
 		},
 		runStep: (testStep, iframe) => {
 			const currentValue =
@@ -217,10 +249,12 @@ export const createBuiltinActions = (config) => [
 		action: 'exist',
 		label: 'should exist',
 		generateCode(testStep) {
+			const arg =
+				testStep.timeout > 0 ? `, { timeout: ${testStep.timeout} }` : ''
 			if (testStep.selectType === 'content') {
-				return `cy.contains('${testStep.selector}')`
+				return `cy.contains('${testStep.selector}'${arg})`
 			}
-			return `cy.get('${testStep.selector}')`
+			return `cy.get('${testStep.selector}'${arg})`
 		},
 		runStep: (testStep, iframe) => {
 			if ($(iframe).contents().find(createSelector(testStep)).length === 0) {

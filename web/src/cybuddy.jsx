@@ -47,9 +47,29 @@ function ActionParamInput({ param, testStep, setTestStep }) {
 			...testStep,
 			args: {
 				...testStep.args,
-				[param.key]: evt.target.value,
+				[param.key]:
+					param.type === 'checkbox' ? evt.target.checked : evt.target.value,
 			},
 		})
+	}
+
+	if (param.type === 'checkbox') {
+		return (
+			<div className="form-group">
+				<div className="form-check">
+					<input
+						className="form-check-input"
+						type="checkbox"
+						id={`input-${param.key}`}
+						checked={testStep.args[param.key] ?? param.defaultValue}
+						onChange={onChange}
+					/>
+					<label className="form-check-label" htmlFor={`input-${param.key}`}>
+						{param.label ?? param.key}
+					</label>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -200,7 +220,7 @@ function TestHelperChild({
 					await axios.post(`/api/templates/${testFile.name}`, {
 						...testFile,
 						force: true,
-	})
+					})
 				}
 				return
 			}
@@ -262,7 +282,11 @@ function TestHelperChild({
 					)
 				}
 			} catch (error) {
-				if (Date.now() - state.stepTime >= 5e3) {
+				const timeout =
+					testFile.steps[state.stepNumber].timeout > 0
+						? testFile.steps[state.stepNumber].timeout
+						: 4e3
+				if (Date.now() - state.stepTime >= timeout) {
 					return {
 						...state,
 						running: false,
@@ -426,6 +450,7 @@ function TestHelperChild({
 			} else {
 				testFileCode.push(stepCode)
 			}
+			testFileCode.push('')
 		}
 
 		testFileCode.push(
@@ -517,6 +542,17 @@ function TestHelperChild({
 						<div className="d-flex align-items-center justify-content-center flex-column h-100">
 							<Header isLoading={isLoading} error={error} />
 
+							{error && !testFile && (
+								<Alert
+									type="danger"
+									dismissable={true}
+									className="mb-4"
+									onDismiss={resetError}
+								>
+									{String(error).split('\n')[0]}
+								</Alert>
+							)}
+
 							{FileOpenMenu}
 
 							<button
@@ -558,12 +594,6 @@ function TestHelperChild({
 						<React.Fragment>
 							<Header isLoading={isLoading} error={error} />
 
-							<RadioSwitch
-								value={mode === 'navigation'}
-								onChange={(nav) => setMode(nav ? 'navigation' : 'pointer')}
-							>
-								Allow navigation
-							</RadioSwitch>
 							<div className="mt-3">
 								<RadioSwitch
 									value={Boolean(testFile.checksErrorsAfterEveryStep)}
@@ -736,7 +766,9 @@ function TestHelperChild({
 													['template', 'as template'],
 												]}
 												onSelect={(key) =>
-													key === 'testFile' ? saveTestFile() : saveTemplate()
+													key === 'testFile'
+														? saveTestFile(testFile)
+														: saveTemplate(testFile)
 												}
 											>
 												Save file
@@ -763,6 +795,16 @@ function TestHelperChild({
 												</button>
 											)}
 										</div>
+
+										<RadioSwitch
+											className="text-white text-center mt-3"
+											value={mode === 'navigation'}
+											onChange={(nav) =>
+												setMode(nav ? 'navigation' : 'pointer')
+											}
+										>
+											Allow navigation
+										</RadioSwitch>
 									</div>
 								</div>
 							)}
@@ -825,6 +867,17 @@ function TestHelperChild({
 											setActiveElm()
 										}}
 									>
+										<div className="form-group">
+											<RadioSwitch
+												value={mode === 'navigation'}
+												onChange={(nav) =>
+													setMode(nav ? 'navigation' : 'pointer')
+												}
+											>
+												Allow navigation
+											</RadioSwitch>
+										</div>
+
 										<div className="form-group">
 											<RadioSwitch
 												data-test="checkbox-use-selector"
@@ -947,6 +1000,50 @@ function TestHelperChild({
 													/>
 												)
 											})}
+
+										<details>
+											<summary>More options</summary>
+
+											<div className="form-group">
+												<label className="col-form-lab">
+													Number of times to perform this step
+												</label>
+												<input
+													data-test="input-repeat"
+													type="number"
+													min="1"
+													step="1"
+													className="form-control"
+													value={testStep.numRepeat ?? 1}
+													onChange={(evt) => {
+														setTestStep({
+															...testStep,
+															numRepeat: Number(evt.target.value),
+														})
+													}}
+												/>
+											</div>
+											<div className="form-group">
+												<label className="col-form-lab">
+													Amount of time to wait for success (zero to use
+													default)
+												</label>
+												<input
+													data-test="input-timeout"
+													type="number"
+													min="0"
+													step="1"
+													className="form-control"
+													value={testStep.timeout ?? 0}
+													onChange={(evt) => {
+														setTestStep({
+															...testStep,
+															timeout: Number(evt.target.value),
+														})
+													}}
+												/>
+											</div>
+										</details>
 
 										<div className="form-group">
 											<code>
@@ -1134,6 +1231,10 @@ function TestHelperChild({
 										selectType: 'selector',
 										selector: `[data-test="${activeElm.attr('data-test')}"]`,
 										action: 'exist',
+										numRepeat: 1,
+
+										// TODO: This is a terrible way to set defaults for builtin
+										// plugins - and it does not handle defaults for custom plugins
 										args: {
 											typeContent: '',
 											locationProperty: 'pathname',
@@ -1260,6 +1361,8 @@ export function CyBuddy() {
 			}
 			return [
 				testStep.comment && `// ${testStep.comment}`,
+				testStep.numRepeat > 1 &&
+					`for (let i = 0; i < ${testStep.numRepeat}; i ++)`,
 				action.generateCode(testStep),
 			]
 				.filter(Boolean)
@@ -1288,7 +1391,10 @@ export function CyBuddy() {
 					`Action '${testStep.action}' does not implement .runStep()`,
 				)
 			}
-			return action.runStep(testStep, iframe)
+
+			for (let i = 0; i < (testStep.numRepeat ?? 1); i++) {
+				await action.runStep(testStep, iframe)
+			}
 		},
 	}
 
