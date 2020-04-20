@@ -7,10 +7,11 @@ export function RadioSwitch({
 	value,
 	onChange,
 	'data-test': dataTest,
+	className = '',
 	children,
 }) {
 	return (
-		<div className="form-check">
+		<div className={`form-check ${className}`}>
 			<input
 				data-test={dataTest}
 				className="form-check-input"
@@ -33,5 +34,6 @@ export function RadioSwitch({
 RadioSwitch.propTypes = {
 	value: PropTypes.bool.isRequired,
 	onChange: PropTypes.func.isRequired,
+	className: PropTypes.string,
 	'data-test': PropTypes.string,
 }
