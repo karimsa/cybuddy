@@ -3,6 +3,14 @@
 example
 src
 .babelrc
-.eslintrc.js
 web
+web/package.json
+web/package-lock.json
 !web/dist
+.cache
+node_modules
+cypress
+cypress.json
+.eslint*
+cybuddy.config.js
+.wiz
