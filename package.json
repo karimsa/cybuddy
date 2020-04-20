@@ -1,5 +1,5 @@
 {
-	"name": "@karimsa/cybuddy",
+	"name": "@hirefast/cybuddy",
 	"scripts": {
 		"start": "concurrently -k 'cd cypress/fixtures && ../../node_modules/.bin/serve' 'wiz build -w src/cli.js' 'cd web && npm start'",
 		"lint": "eslint .",
@@ -15,6 +15,9 @@
 	},
 	"engines": {
 		"node": ">= 8"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"devDependencies": {
 		"@karimsa/wiz": "^0.12.7",
