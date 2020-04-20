@@ -187,8 +187,25 @@ function TestHelperChild({
 	const [
 		saveTemplateState,
 		{ fetch: saveTemplate, reset: resetSaveTemplateState },
-	] = useAsyncAction((testFile) => {
-		return axios.post('/api/templates', testFile)
+	] = useAsyncAction(async (testFile) => {
+		try {
+			await axios.post(`/api/templates/${testFile.name}`, testFile)
+		} catch (error) {
+			if (String(error).includes('already exists')) {
+				if (
+					confirm(
+						`The template '${testFile.name}' already exists. Do you want to overwrite it?`,
+					)
+				) {
+					await axios.post(`/api/templates/${testFile.name}`, {
+						...testFile,
+						force: true,
+	})
+				}
+				return
+			}
+			throw error
+		}
 	})
 
 	useEffect(() => {

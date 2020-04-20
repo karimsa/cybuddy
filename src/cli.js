@@ -216,12 +216,9 @@ async function main() {
 		}),
 	)
 	apiRouter.post(
-		'/templates',
+		'/templates/:filename',
 		route(async (req) => {
-			let filename = req.body.name
-			if (!filename) {
-				throw new Error(`Filename is required`)
-			}
+			let filename = req.params.filename
 			filename =
 				filename.substr(0, filename.length - '.spec.js'.length) + '.json'
 
@@ -236,7 +233,7 @@ async function main() {
 						'\t',
 					),
 					{
-						flag: 'wx',
+						flag: req.body.force ? 'w' : 'wx',
 					},
 				)
 			} catch (error) {
