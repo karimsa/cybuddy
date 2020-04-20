@@ -53,7 +53,7 @@ Cypress.Commands.add('saveAndRunTest', () => {
 				// It should only be importing from helpers, which we can share
 				// from the source copy
 				(path) => {
-					if (path === '@karimsa/cybuddy/helpers') {
+					if (path === '@hirefast/cybuddy/helpers') {
 						return cyHelpers
 					}
 					throw new Error(`Unrecognized module: ${path}`)

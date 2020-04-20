@@ -427,7 +427,7 @@ function TestHelperChild({
 	] = useAsyncAction(async () => {
 		const testFileCode = [
 			`/* eslint-disable */`,
-			`const helpers = require('@karimsa/cybuddy/helpers')`,
+			`const helpers = require('@hirefast/cybuddy/helpers')`,
 			``,
 			`describe('${testFile.name}', () => {`,
 			`\tit('${testFile.description}', () => {`,
