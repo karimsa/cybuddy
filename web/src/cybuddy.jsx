@@ -1345,7 +1345,15 @@ export function CyBuddy() {
 					`/api/actions/${testStep.action}/generate`,
 					testStep,
 				)
-				return code
+
+				return [
+					testStep.numRepeat > 1 &&
+						`for (let i = 0; i < ${testStep.numRepeat}; i ++) {`,
+					code,
+					testStep.numRepeat > 1 && `}`,
+				]
+					.filter(Boolean)
+					.join('\n')
 			}
 
 			const action = actions.find((action) => action.action === testStep.action)
@@ -1375,7 +1383,9 @@ export function CyBuddy() {
 					testStep,
 				)
 				steps.forEach((step) => {
-					runProxyStep(step, iframe, config)
+					for (let i = 0; i < (testStep.numRepeat ?? 1); i++) {
+						runProxyStep(step, iframe, config)
+					}
 				})
 				return
 			}
