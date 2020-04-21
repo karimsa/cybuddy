@@ -368,7 +368,7 @@ async function main() {
 
 	console.log(`🌍 Opening browser ...`)
 	const browser = await puppeteer.launch({
-		args: ['--disable-web-security'],
+		args: ['--disable-web-security', ...(config.browserArgs || [])],
 		headless: false,
 		defaultViewport: null,
 	})
