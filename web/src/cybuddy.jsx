@@ -1382,11 +1382,11 @@ export function CyBuddy() {
 					`/api/actions/${testStep.action}/run`,
 					testStep,
 				)
-				steps.forEach((step) => {
+				for (const step of steps) {
 					for (let i = 0; i < (testStep.numRepeat ?? 1); i++) {
-						runProxyStep(step, iframe, config)
+						await runProxyStep(step, iframe, config)
 					}
-				})
+				}
 				return
 			}
 

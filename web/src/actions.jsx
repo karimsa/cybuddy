@@ -46,6 +46,42 @@ function setInputValue(input, value) {
 	input.dispatchEvent(event)
 }
 
+class CypressWrapper {
+	constructor(selector, target, options) {
+		this.selector = selector
+		this.target = $(target)
+		this.options = options ?? {}
+
+		if (this.target.length === 0) {
+			throw new Error(`Cannot create cypress wrapper around null`)
+		}
+	}
+
+	type(value) {
+		setInputValue(this.target.get(0), this.target.val() + value)
+		return this
+	}
+
+	clear() {
+		setInputValue(this.target.get(0), '')
+		return this
+	}
+
+	click() {
+		if (!this.options.force && this.target.is(':disabled')) {
+			throw new Error(
+				`Cannot perform click on disabled element: ${this.selector}`,
+			)
+		}
+		this.target.get(0).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+		return this
+	}
+
+	async then(fn) {
+		return fn(this.target)
+	}
+}
+
 const createCyProxy = (iframe, { originUrl, baseURL }) => ({
 	$,
 	visit(href) {
@@ -93,15 +129,25 @@ const createCyProxy = (iframe, { originUrl, baseURL }) => ({
 		const { Function: Func } = iframe.contentWindow
 		return new Func('cy', code).call(iframe.contentWindow, this)
 	},
+	wrap(target, options) {
+		return new CypressWrapper('(unknown element)', target, options)
+	},
+	get(selector, options) {
+		const elm = $(iframe).contents().find(selector).get(0)
+		if (!elm) {
+			throw new Error(`No element found matching selector: ${selector}`)
+		}
+		return new CypressWrapper(selector, elm, options)
+	},
 })
 
-export function runProxyStep({ method, args, chain }, iframe, config) {
+export async function runProxyStep({ method, args, chain }, iframe, config) {
 	const cy = createCyProxy(iframe, config)
 
 	if (!cy[method]) {
 		throw new Error(`cy.${method}() is not a function`)
 	}
-	let ctx = cy[method].apply(cy, args)
+	let ctx = await cy[method].apply(cy, args)
 	const chained = [method]
 
 	for (const { method, args } of chain) {
@@ -110,7 +156,7 @@ export function runProxyStep({ method, args, chain }, iframe, config) {
 				`cy.${chained.map((m) => '.' + m + '()').join('')} is not a function`,
 			)
 		}
-		ctx = ctx[method].apply(ctx, args)
+		ctx = await ctx[method].apply(ctx, args)
 		chained.push(method)
 	}
 }
@@ -154,10 +200,10 @@ export const createBuiltinActions = (config) => [
 				`type('${testStep.args.typeContent}')`,
 			].join('.'),
 		runStep: (testStep, iframe) =>
-			setInputValue(
-				$(iframe).contents().find(createSelector(testStep)).get(0),
-				testStep.args.typeContent,
-			),
+			createCyProxy(iframe, config)
+				.get(createSelector(testStep))
+				.clear()
+				.type(testStep.args.typeContent),
 	},
 	{
 		action: 'click',
@@ -182,20 +228,7 @@ export const createBuiltinActions = (config) => [
 			].join('.')
 		},
 		runStep: (testStep, iframe) => {
-			const elm = $(iframe).contents().find(createSelector(testStep)).get(0)
-			if (!elm) {
-				throw new Error(
-					`No element found matching selector: ${createSelector(testStep)}`,
-				)
-			}
-			if (!testStep.args.forceClick && $(elm).is(':disabled')) {
-				throw new Error(
-					`Cannot perform click on disabled element: ${createSelector(
-						testStep,
-					)}`,
-				)
-			}
-			elm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+			return createCyProxy(iframe, config).get(createSelector(testStep)).click()
 		},
 	},
 	{
