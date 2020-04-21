@@ -374,9 +374,18 @@ async function main() {
 	})
 	const [page] = await browser.pages()
 	await page.goto(`http://localhost:${config.port}/cybuddy/`)
+
+	await new Promise((resolve) => {
+		page.on('close', resolve)
+		browser.on('disconnected', resolve)
+	})
+
+	await browser.close()
 }
 
-main().catch((error) => {
-	console.error(error.stack || error)
-	process.exit(1)
-})
+main()
+	.then(() => process.exit())
+	.catch((error) => {
+		console.error(error.stack || error)
+		process.exit(1)
+	})
