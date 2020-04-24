@@ -220,15 +220,23 @@ export const createBuiltinActions = (config) => [
 			return [
 				'cy',
 				testStep.selectType === 'content'
-					? `contains('${testStep.selector}')`
-					: `get('${testStep.selector}')`,
-				testStep.timeout > 0
-					? `click({ timeout: ${testStep.timeout} })`
-					: 'click()',
-			].join('.')
+					? `.contains('${testStep.selector}', {`
+					: `.get('${testStep.selector}', {`,
+				testStep.timeout && `timeout: ${testStep.timeout},`,
+				'})',
+				'.click({',
+				testStep.args.forceClick && `force: true,`,
+				'})',
+			]
+				.filter(Boolean)
+				.join('')
 		},
 		runStep: (testStep, iframe) => {
-			return createCyProxy(iframe, config).get(createSelector(testStep)).click()
+			return createCyProxy(iframe, config)
+				.get(createSelector(testStep), {
+					force: Boolean(testStep.args.forceClick),
+				})
+				.click()
 		},
 	},
 	{
