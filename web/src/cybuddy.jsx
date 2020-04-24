@@ -1254,7 +1254,9 @@ function TestHelperChild({
 									}
 
 									if (!activeElm.attr('data-test')) {
-										if (activeElm.is('a')) {
+										if (activeElm.attr('id')) {
+											updatedStep.selector = `#${activeElm.attr('id')}`
+										} else if (activeElm.is('a')) {
 											updatedStep.selector = `[href="${activeElm.attr(
 												'href',
 											)}"]`
