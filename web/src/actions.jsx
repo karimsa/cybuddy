@@ -370,8 +370,9 @@ export const createBuiltinActions = (config) => [
 		params: [
 			{
 				key: 'typeContent',
-				type: 'string',
-				label: 'Type content',
+				type: 'select',
+				label: 'Select an option',
+				options: [],
 			},
 		],
 		generateCode: (testStep) =>
