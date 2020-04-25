@@ -457,7 +457,17 @@ function TestHelperChild({
 			`\t})`,
 			`})`,
 			``,
-			`module.exports = ${JSON.stringify(testFile, null, '\t')}`,
+			`module.exports = ${JSON.stringify(
+				{
+					...testFile,
+					steps: testFile.steps.map((step) => ({
+						...step,
+						id: undefined,
+					})),
+				},
+				null,
+				'\t',
+			)}`,
 			``,
 		)
 
